@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>chefsache – Auswertung</title>
+    <link rel="stylesheet" href="/css/chefsache.css">
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+    <a class="brand" href="/quiz" aria-label="chefsache – zum Fragebogen"><span class="brand-mark" aria-hidden="true">c</span><span>chefsache<span class="brand-dot">.</span></span></a>
+    <span class="header-note">Perspektiven auf Führung</span>
+</div></header>
+<main class="page">
+    <section class="hero" aria-labelledby="page-title"><p class="eyebrow">Ihre Auswertung</p>
+        <h1 id="page-title">Ihre Wahrnehmung.<br>Auf einen Blick.</h1>
+        <p class="intro">Ihre Antworten zeigen, wie stark Sie den Aussagen in den fünf Bereichen zustimmen. Alle Ergebnisse werden als Mittelwert auf einer Skala von 1 bis 5 dargestellt.</p>
+        <div class="meta"><span class="pill">15 Aussagen beantwortet</span><span class="pill">5 Bereiche ausgewertet</span></div>
+    </section>
+    <div class="result-layout">
+        <section class="summary-card" aria-labelledby="overall-title"><h2 class="eyebrow" id="overall-title">Gesamtmittelwert</h2>
+            <div class="score-big" th:text="${#numbers.formatDecimal(totalScore, 1, 'POINT', 2, 'COMMA')}"></div>
+            <span class="score-unit">von 5 möglichen Punkten</span>
+            <p>Der Gesamtwert ist der Mittelwert Ihrer Antworten auf alle 15 Aussagen. Jede Aussage geht gleich stark in die Auswertung ein.</p>
+        </section>
+        <section class="results-card" aria-labelledby="areas-title"><h2 id="areas-title">Die fünf Bereiche im Detail</h2><p class="section-description">Jeweils der Mittelwert aus drei Aussagen.</p>
+            <div class="result-row" th:each="entry : ${scores}">
+                <div class="result-row-head"><div><span class="result-label" th:text="${entry.key.label}"></span><span class="result-code" th:text="${entry.key.code}"></span></div><span class="result-value"><span th:text="${#numbers.formatDecimal(entry.value, 1, 'POINT', 2, 'COMMA')}"></span> <small>/ 5</small></span></div>
+                <div class="result-track" aria-hidden="true" th:style="|--score-position: ${(entry.value - 1) * 25}%;|"><span class="result-dot"></span></div>
+                <div class="scale-ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+            </div>
+        </section>
+    </div>
+    <aside class="guide"><span class="guide-icon" aria-hidden="true">i</span><div><h2>So lesen Sie Ihre Ergebnisse</h2><p>1 steht für „stimme überhaupt nicht zu“, 3 für „weder noch“ und 5 für „stimme voll und ganz zu“. Höhere Mittelwerte entsprechen stärkerer Zustimmung zu den Aussagen über ausbeuterisches Führungsverhalten.</p></div></aside>
+    <div class="result-actions"><a class="button" href="/quiz">Fragebogen erneut ausfüllen <span class="button-arrow" aria-hidden="true">↗</span></a></div>
+</main>
+<footer class="site-footer"><div class="footer-inner"><span>chefsache · Führung reflektieren.</span><span>Fragebogen zu ausbeuterischem Führungsverhalten</span></div></footer>
+</body>
+</html>

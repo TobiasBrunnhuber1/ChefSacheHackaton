@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>chefsache – Fragebogen</title>
+    <link rel="stylesheet" href="/css/chefsache.css">
+    <script src="/js/questionnaire.js" defer></script>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+    <a class="brand" href="/quiz" aria-label="chefsache – zum Fragebogen"><span class="brand-mark" aria-hidden="true">c</span><span>chefsache<span class="brand-dot">.</span></span></a>
+    <span class="header-note">Perspektiven auf Führung</span>
+</div></header>
+<main class="page">
+    <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">Führungsverhalten · Selbstauskunft</p>
+        <h1 id="page-title">Führung bewusst<br>wahrnehmen.</h1>
+        <p class="intro">Wie erleben Sie das Verhalten Ihrer Führungskraft? Mit diesen 15 Aussagen reflektieren Sie ausbeuterisches Führungsverhalten in fünf Bereichen.</p>
+        <div class="meta"><span class="pill">15 Aussagen</span><span class="pill">5 Bereiche</span><span class="pill">5-stufige Likert-Skala</span></div>
+    </section>
+    <aside class="guide"><span class="guide-icon" aria-hidden="true">i</span><div>
+        <h2>So beantworten Sie den Fragebogen</h2>
+        <p>Wählen Sie für jede Aussage die Antwort, die Ihrer Wahrnehmung am nächsten kommt. Die Skala reicht von <strong>1 – stimme überhaupt nicht zu</strong> bis <strong>5 – stimme voll und ganz zu</strong>. Mit 3 wählen Sie „weder noch“.</p>
+    </div></aside>
+    <form action="/quiz/submit" method="post" id="questionnaire">
+        <div class="progress-panel" id="progress-panel" hidden>
+            <div class="progress-meta"><span>Ihr Fortschritt</span><span id="progress-label" role="status" aria-live="polite">0 von 15 beantwortet</span></div>
+            <progress id="answer-progress" value="0" max="15" aria-label="Beantwortete Aussagen"></progress>
+        </div>
+        <div class="questions">
+            <section class="question-card" th:each="question, status : ${questions}">
+                <div class="question-meta"><span class="question-index" th:text="|AUSSAGE ${status.count} / ${status.size}|"></span><span class="question-id" th:text="${question.id}"></span></div>
+                <fieldset>
+                    <legend lang="en" th:text="${question.thesis}"></legend>
+                    <div class="options">
+                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="1" required><span class="option-number">1</span><span class="option-text">Stimme überhaupt nicht zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="2" required><span class="option-number">2</span><span class="option-text">Stimme eher nicht zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="3" required><span class="option-number">3</span><span class="option-text">Weder noch</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="4" required><span class="option-number">4</span><span class="option-text">Stimme eher zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="5" required><span class="option-number">5</span><span class="option-text">Stimme voll und ganz zu</span></label>
+                    </div>
+                </fieldset>
+            </section>
+        </div>
+        <div class="submit-panel"><div><h2>Ein klareres Bild Ihrer Wahrnehmung.</h2><p>Ihre Auswertung zeigt die Mittelwerte für alle fünf Bereiche.</p></div><button class="button" type="submit">Auswertung ansehen <span class="button-arrow" aria-hidden="true">→</span></button></div>
+    </form>
+</main>
+<footer class="site-footer"><div class="footer-inner"><span>chefsache · Führung reflektieren.</span><span>Fragebogen zu ausbeuterischem Führungsverhalten</span></div></footer>
+</body>
+</html>
