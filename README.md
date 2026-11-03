@@ -59,3 +59,8 @@ Ein öffentliches Repository erlaubt das Lesen und Klonen. Direkter Schreibzugri
 
 Java 23, Spring Boot 3.3.4, Thymeleaf, Maven, HTML/CSS und JavaScript.
 Es ist keine Datenbank erforderlich; Antworten werden für die Auswertung verarbeitet und nicht dauerhaft gespeichert.
+
+## Mitwirkende
+
+- Tobias Brunnhuber
+- Aaron
