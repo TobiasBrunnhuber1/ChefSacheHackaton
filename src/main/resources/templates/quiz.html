@@ -8,31 +8,88 @@
     <script src="/js/questionnaire.js" defer></script>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-    <a class="brand" href="/quiz" aria-label="chefsache – zum Fragebogen"><span class="brand-mark" aria-hidden="true">c</span><span>chefsache<span class="brand-dot">.</span></span></a>
-    <span class="header-note">Perspektiven auf Führung</span>
-</div></header>
+<header class="site-header">
+    <div class="header-inner">
+        <a class="brand" href="/" aria-label="chefsache – Startseite">
+            <span class="brand-mark" aria-hidden="true">c</span>
+            <span>chefsache<span class="brand-dot">.</span></span>
+        </a>
+        <nav class="site-nav" aria-label="Hauptnavigation">
+            <a class="nav-link" href="/">Start &amp; Links</a>
+            <a class="nav-link is-active" href="/quiz">Fragebogen</a>
+            <a class="nav-link" href="/compare">Team-Vergleich</a>
+        </nav>
+    </div>
+</header>
+
 <main class="page">
     <section class="hero" aria-labelledby="page-title">
-        <p class="eyebrow">Führungsverhalten · Selbstauskunft</p>
-        <h1 id="page-title">Führung bewusst<br>wahrnehmen.</h1>
-        <p class="intro">Wie erleben Sie das Verhalten Ihrer Führungskraft? Mit diesen 15 Aussagen reflektieren Sie ausbeuterisches Führungsverhalten in fünf Bereichen.</p>
-        <div class="meta"><span class="pill">15 Aussagen</span><span class="pill">5 Bereiche</span><span class="pill">5-stufige Likert-Skala</span></div>
+        <p class="eyebrow" th:text="|Führungsverhalten · ${role.label}|">Führungsverhalten · Befragung</p>
+        <h1 id="page-title" th:text="${role.name() == 'LEADER'} ? 'Selbstreflexion als Führungskraft.' : 'Führung bewusst wahrnehmen.'">Führung bewusst wahrnehmen.</h1>
+        <p class="intro" th:if="${role.name() == 'EMPLOYEE'}">Wie erleben Sie das Verhalten Ihrer Führungskraft im Arbeitsalltag? Mit diesen 15 Aussagen reflektieren Sie fünf Bereiche – anonym und direkt vergleichbar mit der Selbsteinschätzung.</p>
+        <p class="intro" th:if="${role.name() == 'LEADER'}">Wie schätzen Sie Ihr eigenes Führungsverhalten ein? Die 15 Aussagen in der Ich-Form bilden Ihr Selbstbild für die Gegenüberstellung mit Ihrem Team.</p>
+        <div class="meta">
+            <span class="pill pill-role" th:text="${role.label}"></span>
+            <span class="pill">15 Aussagen</span>
+            <span class="pill">5 Bereiche</span>
+            <span class="pill">Skala 1 (niedrig) bis 5 (hoch)</span>
+        </div>
     </section>
-    <aside class="guide"><span class="guide-icon" aria-hidden="true">i</span><div>
-        <h2>So beantworten Sie den Fragebogen</h2>
-        <p>Wählen Sie für jede Aussage die Antwort, die Ihrer Wahrnehmung am nächsten kommt. Die Skala reicht von <strong>1 – stimme überhaupt nicht zu</strong> bis <strong>5 – stimme voll und ganz zu</strong>. Mit 3 wählen Sie „weder noch“.</p>
-    </div></aside>
+
+    <aside class="guide">
+        <span class="guide-icon" aria-hidden="true">i</span>
+        <div>
+            <h2>So beantworten Sie den Fragebogen</h2>
+            <p>Wählen Sie für jede Aussage den Wert, der Ihrer Wahrnehmung am nächsten kommt: <strong>1 – stimme überhaupt nicht zu</strong> (Verhalten tritt nicht auf) bis <strong>5 – stimme voll und ganz zu</strong> (Verhalten tritt stark auf). Höhere Werte signalisieren stärkeren Handlungsbedarf.</p>
+        </div>
+    </aside>
+
     <form action="/quiz/submit" method="post" id="questionnaire">
+        <input type="hidden" name="role" th:value="${role.name()}">
+
+        <section class="context-bar" aria-label="Erhebungszuordnung">
+            <div class="field-group">
+                <span class="field-label">Ihre Rolle</span>
+                <div class="role-tabs">
+                    <a class="role-tab"
+                       th:classappend="${role.name() == 'EMPLOYEE'} ? ' is-active'"
+                       data-role-switch="EMPLOYEE"
+                       th:href="@{/quiz(role='EMPLOYEE',team=${teamCode},round=${roundName})}">Mitarbeitende</a>
+                    <a class="role-tab"
+                       th:classappend="${role.name() == 'LEADER'} ? ' is-active'"
+                       data-role-switch="LEADER"
+                       th:href="@{/quiz(role='LEADER',team=${teamCode},round=${roundName})}">Führungskraft</a>
+                </div>
+            </div>
+            <div class="field-group">
+                <label for="teamCode">Team-Code</label>
+                <input id="teamCode" name="teamCode" type="text" th:value="${teamCode}" placeholder="z. B. mein-team">
+            </div>
+            <div class="field-group">
+                <label for="roundName">Erhebungsrunde</label>
+                <input id="roundName" name="roundName" type="text" th:value="${roundName}" placeholder="z. B. Runde 1">
+            </div>
+        </section>
+
         <div class="progress-panel" id="progress-panel" hidden>
-            <div class="progress-meta"><span>Ihr Fortschritt</span><span id="progress-label" role="status" aria-live="polite">0 von 15 beantwortet</span></div>
+            <div class="progress-meta">
+                <span>Ihr Fortschritt</span>
+                <span id="progress-label" role="status" aria-live="polite">0 von 15 beantwortet</span>
+            </div>
             <progress id="answer-progress" value="0" max="15" aria-label="Beantwortete Aussagen"></progress>
         </div>
+
         <div class="questions">
             <section class="question-card" th:each="question, status : ${questions}">
-                <div class="question-meta"><span class="question-index" th:text="|AUSSAGE ${status.count} / ${status.size}|"></span><span class="question-id" th:text="${question.id}"></span></div>
+                <div class="question-meta">
+                    <div>
+                        <span class="question-index" th:text="|AUSSAGE ${status.count} / ${status.size}|"></span>
+                        <span class="question-category-pill" th:text="${question.category.label}"></span>
+                    </div>
+                    <span class="question-id" th:text="${question.id}"></span>
+                </div>
                 <fieldset>
-                    <legend lang="en" th:text="${question.thesis}"></legend>
+                    <legend th:text="${question.getThesisFor(role)}"></legend>
                     <div class="options">
                         <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="1" required><span class="option-number">1</span><span class="option-text">Stimme überhaupt nicht zu</span></label>
                         <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="2" required><span class="option-number">2</span><span class="option-text">Stimme eher nicht zu</span></label>
@@ -43,9 +100,58 @@
                 </fieldset>
             </section>
         </div>
-        <div class="submit-panel"><div><h2>Ein klareres Bild Ihrer Wahrnehmung.</h2><p>Ihre Auswertung zeigt die Mittelwerte für alle fünf Bereiche.</p></div><button class="button" type="submit">Auswertung ansehen <span class="button-arrow" aria-hidden="true">→</span></button></div>
+
+        <div class="extra-sections">
+            <section class="card" aria-labelledby="situations-title">
+                <p class="eyebrow">Kontext &amp; Verhaltensmuster (optional)</p>
+                <h2 id="situations-title" style="margin: 0 0 6px; font-size: 19px;">In welchen Situationen tritt dieses Verhalten auf?</h2>
+                <p class="section-description" style="margin-bottom: 14px;">Wählen Sie typische Situationen aus oder beschreiben Sie ein konkretes Muster – anonymisiert hilft das der Führungskraft zu verstehen, <em>wo</em> Veränderung ansetzen muss.</p>
+
+                <div class="tag-grid" role="group" aria-label="Typische Situationen">
+                    <label class="tag-option" th:each="tag : ${predefinedTags}">
+                        <input type="checkbox" name="situationTags" th:value="${tag}">
+                        <span th:text="${tag}"></span>
+                    </label>
+                </div>
+
+                <div class="grid-2" style="margin-top: 16px;">
+                    <div class="field-group">
+                        <label for="situationCategory">Welcher Bereich passt am ehesten? (optional)</label>
+                        <select id="situationCategory" name="situationCategory">
+                            <option value="">Allgemein / keinem bestimmten Bereich zugeordnet</option>
+                            <option th:each="cat : ${categories}" th:value="${cat.name()}" th:text="${cat.label}"></option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label for="situationNote">Konkretes Verhaltensmuster / Situation (optional, ohne Namen)</label>
+                        <textarea id="situationNote" name="situationNote" placeholder="z. B. Vor Management-Terminen werden Aufgaben kurzfristig umverteilt, ohne laufende Deadlines anzupassen …"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <section class="reflection-card" aria-labelledby="thinking-title">
+                <p class="eyebrow">Denkanstoß</p>
+                <h2 id="thinking-title">Ein Moment zum Innehalten</h2>
+                <p th:text="${thinkingQuestion}"></p>
+                <textarea id="reflectionNote" name="reflectionNote" aria-label="Ihr persönlicher Denkanstoß" placeholder="Optional: Notieren Sie einen Gedanken, eine Beobachtung oder einen konkreten Wunsch …"></textarea>
+            </section>
+        </div>
+
+        <div class="submit-panel">
+            <div>
+                <h2>Ein klareres Bild Ihrer Wahrnehmung.</h2>
+                <p>Die Auswertung zeigt Ihre Mittelwerte, konkrete Situationserklärungen und direkte Handlungsimpulse.</p>
+            </div>
+            <button class="button" type="submit">Auswertung speichern &amp; ansehen <span class="button-arrow" aria-hidden="true">→</span></button>
+        </div>
     </form>
 </main>
-<footer class="site-footer"><div class="footer-inner"><span>chefsache · Führung reflektieren.</span><span>Fragebogen zu ausbeuterischem Führungsverhalten</span></div></footer>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <span>chefsache · Führung reflektieren.</span>
+        <span>Fragebogen zu ausbeuterischem Führungsverhalten</span>
+    </div>
+</footer>
 </body>
 </html>

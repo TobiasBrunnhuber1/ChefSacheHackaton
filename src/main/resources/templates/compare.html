@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>chefsache – Team-Vergleich &amp; Entwicklung</title>
+    <link rel="stylesheet" href="/css/chefsache.css">
+</head>
+<body>
+<header class="site-header">
+    <div class="header-inner">
+        <a class="brand" href="/" aria-label="chefsache – Startseite">
+            <span class="brand-mark" aria-hidden="true">c</span>
+            <span>chefsache<span class="brand-dot">.</span></span>
+        </a>
+        <nav class="site-nav" aria-label="Hauptnavigation">
+            <a class="nav-link" href="/">Start &amp; Links</a>
+            <a class="nav-link" href="/quiz">Fragebogen</a>
+            <a class="nav-link is-active" href="/compare">Team-Vergleich</a>
+        </nav>
+    </div>
+</header>
+
+<main class="page">
+    <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">Gegenüberstellung &amp; Verlaufsvergleich</p>
+        <h1 id="page-title">Selbstbild vs. Team-Realität.<br>Und wird es besser?</h1>
+        <p class="intro">Vergleichen Sie die Selbsteinschätzung der Führungskraft direkt mit der anonymen Wahrnehmung der Mitarbeitenden – inklusive konkreter Situationen, beidseitiger Handlungsempfehlungen und Entwicklung über die Zeit.</p>
+    </section>
+
+    <form action="/compare" method="get" class="context-bar" aria-label="Team und Runde auswählen">
+        <div class="field-group">
+            <label for="teamSelect">Team auswählen</label>
+            <select id="teamSelect" name="team" onchange="this.form.submit()">
+                <option th:if="${#lists.isEmpty(teamOverviews)}" th:value="${selectedTeam}" th:text="${selectedTeam}"></option>
+                <option th:each="t : ${teamOverviews}"
+                        th:value="${t.teamCode}"
+                        th:selected="${t.teamCode == selectedTeam}"
+                        th:text="|${t.teamCode} (${t.totalSubmissions} Abgaben)|"></option>
+            </select>
+        </div>
+        <div class="field-group" th:if="${report != null}">
+            <label for="roundSelect">Erhebungsrunde</label>
+            <select id="roundSelect" name="round" onchange="this.form.submit()">
+                <option th:each="r : ${report.availableRounds}"
+                        th:value="${r}"
+                        th:selected="${r == report.selectedRound}"
+                        th:text="${r}"></option>
+            </select>
+        </div>
+        <div class="field-group" th:if="${report == null}">
+            <span class="field-label">Status</span>
+            <span class="field-hint">Noch keine Einträge für dieses Team.</span>
+        </div>
+        <div class="field-group">
+            <span class="field-label">Neue Befragung</span>
+            <a class="button" th:href="@{/(team=${selectedTeam})}">Einladungslinks &amp; Start →</a>
+        </div>
+    </form>
+
+    <section th:if="${report == null}" class="card" style="text-align: center; padding: 38px 24px;">
+        <h2 style="margin-top: 0;">Für dieses Team liegen noch keine Antworten vor.</h2>
+        <p class="intro" style="margin: 0 auto 22px;">Starten Sie eine Befragung für Führungskraft und Mitarbeitende oder laden Sie das vorbereitete 2-Runden-Demo-Szenario.</p>
+        <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+            <a class="button" th:href="@{/quiz(role='EMPLOYEE',team=${selectedTeam},round='Runde 1')}">Fragebogen ausfüllen →</a>
+            <form action="/demo/seed" method="post">
+                <button type="submit" class="button button-secondary">Demo-Szenario laden (2 Runden)</button>
+            </form>
+        </div>
+    </section>
+
+    <div th:if="${report != null}">
+        <!-- Anonymitätshinweis bei kleinem Sample -->
+        <aside th:if="${report.employeeCount > 0 and report.employeeCount < 3}" class="guide">
+            <span class="guide-icon" aria-hidden="true">i</span>
+            <div>
+                <h2>Hinweis zu kleiner Gruppengröße (<span th:text="${report.employeeCount}"></span> Mitarbeiter-Rückmeldung/en)</h2>
+                <p>Laden Sie idealerweise mindestens 3 Mitarbeitende über den <a th:href="@{/(team=${report.teamCode},round=${report.selectedRound})}" style="text-decoration: underline;">Team-Link</a> ein, damit der Mittelwert aussagekräftiger wird und die Anonymität noch besser geschützt ist.</p>
+            </div>
+        </aside>
+
+        <!-- 4 KPI-Karten -->
+        <section class="grid-4" aria-label="Kennzahlen im Überblick">
+            <div class="kpi-card">
+                <div class="kpi-label">Führungskraft (Selbstbild)</div>
+                <div class="kpi-value" th:if="${report.leaderTotalScore != null}"
+                     th:text="${#numbers.formatDecimal(report.leaderTotalScore, 1, 'POINT', 2, 'COMMA')}"></div>
+                <div class="kpi-value" th:if="${report.leaderTotalScore == null}">–</div>
+                <p class="kpi-sub" th:if="${report.leaderTotalScore != null}">Gesamtmittelwert (Skala 1–5)</p>
+                <p class="kpi-sub" th:if="${report.leaderTotalScore == null}">
+                    Noch offen – <a th:href="@{/quiz(role='LEADER',team=${report.teamCode},round=${report.selectedRound})}" style="text-decoration: underline;">jetzt ausfüllen</a>
+                </p>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label" th:text="|Team-Ø (${report.employeeCount} Antworten)|">Team-Ø</div>
+                <div class="kpi-value score-text" th:classappend="| ${report.overallSeverity.cssClass}|"
+                     th:if="${report.employeeTotalScore != null}"
+                     th:text="${#numbers.formatDecimal(report.employeeTotalScore, 1, 'POINT', 2, 'COMMA')}"></div>
+                <div class="kpi-value" th:if="${report.employeeTotalScore == null}">–</div>
+                <span th:if="${report.employeeTotalScore != null}" class="severity-badge"
+                      th:classappend="| ${report.overallSeverity.cssClass}|"
+                      th:text="${report.overallSeverity.label}"></span>
+                <p class="kpi-sub" th:if="${report.employeeTotalScore == null}">
+                    Noch keine Mitarbeiter-Rückmeldung
+                </p>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Wahrnehmungslücke (Blind Spot)</div>
+                <div class="kpi-value" th:if="${report.totalBlindSpot != null}"
+                     th:text="${(report.totalBlindSpot >= 0 ? '+' : '') + #numbers.formatDecimal(report.totalBlindSpot, 1, 'POINT', 2, 'COMMA')}"></div>
+                <div class="kpi-value" th:if="${report.totalBlindSpot == null}">–</div>
+                <p class="kpi-sub" th:if="${report.totalBlindSpot != null and report.totalBlindSpot > 0.3}">
+                    Team erlebt Verhalten kritischer als die Führungskraft.
+                </p>
+                <p class="kpi-sub" th:if="${report.totalBlindSpot != null and report.totalBlindSpot <= 0.3 and report.totalBlindSpot >= -0.3}">
+                    Selbst- und Fremdbild liegen nah beieinander.
+                </p>
+                <p class="kpi-sub" th:if="${report.totalBlindSpot != null and report.totalBlindSpot < -0.3}">
+                    Führungskraft schätzt sich strenger ein als das Team.
+                </p>
+                <p class="kpi-sub" th:if="${report.totalBlindSpot == null}">Benötigt beide Perspektiven.</p>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Entwicklung zur Vorrunde</div>
+                <div class="kpi-value" th:if="${report.totalTrendDelta != null}"
+                     th:text="${(report.totalTrendDelta >= 0 ? '+' : '') + #numbers.formatDecimal(report.totalTrendDelta, 1, 'POINT', 2, 'COMMA')}"></div>
+                <div class="kpi-value" th:if="${report.totalTrendDelta == null}">–</div>
+                <span class="trend-badge" th:classappend="| ${report.totalTrend.cssClass}|"
+                      th:text="|${report.totalTrend.arrow} ${report.totalTrend.label}|"></span>
+                <p class="kpi-sub" th:if="${report.previousRound != null}" th:text="|Vergleich zu ${report.previousRound}|"></p>
+                <p class="kpi-sub" th:if="${report.previousRound == null}">Erste erfasste Runde</p>
+            </div>
+        </section>
+
+        <!-- Zeitlicher Verlauf ("Bessert sich das Verhalten?") -->
+        <section class="card" style="margin-bottom: 24px;" aria-labelledby="timeline-title">
+            <div class="result-row-head" style="margin-bottom: 10px;">
+                <div>
+                    <p class="eyebrow" style="margin-bottom: 6px;">Verlaufsvergleich über mehrere Runden</p>
+                    <h2 id="timeline-title" style="margin: 0; font-size: 20px;">Bessert sich das Verhalten über die Zeit?</h2>
+                </div>
+                <a class="button button-secondary"
+                   th:href="@{/(team=${report.teamCode},round=|Runde ${report.availableRounds.size() + 1}|)}">
+                    Nächste Runde starten →
+                </a>
+            </div>
+
+            <p class="section-description" th:if="${report.timeline.size() < 2}">
+                Aktuell liegt eine Runde vor. Sobald eine weitere Erhebungsrunde (z. B. <strong>Runde 2</strong>) durchgeführt wird, erscheint hier der direkte Vorher-/Nachher-Verlauf.
+            </p>
+
+            <div th:if="${report.timeline.size() >= 2}">
+                <div class="compare-markers-legend">
+                    <span><span class="dot-sample dot-employee"></span> Team-Mittelwert (niedriger = besser)</span>
+                    <span><span class="dot-sample dot-leader"></span> Selbstbild Führungskraft</span>
+                </div>
+
+                <div class="chart-wrap">
+                    <svg class="trend-svg" viewBox="0 0 600 205" role="img" aria-label="Verlaufsdiagramm der Rundenwerte von 1 bis 5">
+                        <!-- Ampel-Zonen im Hintergrund -->
+                        <rect x="52" y="22" width="496" height="63" fill="#fef0f0"/>
+                        <rect x="52" y="85" width="496" height="45" fill="#fef5e7"/>
+                        <rect x="52" y="130" width="496" height="36" fill="#eaf6f1"/>
+
+                        <!-- Skalenlinien 5..1 -->
+                        <line x1="52" y1="22" x2="548" y2="22" stroke="#dce5e2" stroke-width="1"/>
+                        <line x1="52" y1="58" x2="548" y2="58" stroke="#dce5e2" stroke-width="1" stroke-dasharray="3 3"/>
+                        <line x1="52" y1="94" x2="548" y2="94" stroke="#dce5e2" stroke-width="1" stroke-dasharray="3 3"/>
+                        <line x1="52" y1="130" x2="548" y2="130" stroke="#dce5e2" stroke-width="1" stroke-dasharray="3 3"/>
+                        <line x1="52" y1="166" x2="548" y2="166" stroke="#9eb3ad" stroke-width="1.2"/>
+
+                        <text x="42" y="26" font-size="10" fill="#5d7078" text-anchor="end">5</text>
+                        <text x="42" y="62" font-size="10" fill="#5d7078" text-anchor="end">4</text>
+                        <text x="42" y="98" font-size="10" fill="#5d7078" text-anchor="end">3</text>
+                        <text x="42" y="134" font-size="10" fill="#5d7078" text-anchor="end">2</text>
+                        <text x="42" y="170" font-size="10" fill="#5d7078" text-anchor="end">1</text>
+
+                        <!-- Verbindungslinien zwischen Runden -->
+                        <g th:each="pt, st : ${report.timeline}" th:if="${!st.last}">
+                            <line th:if="${pt.leaderYCoord != null and report.timeline[st.index + 1].leaderYCoord != null}"
+                                  th:attr="x1=${pt.xCoord},y1=${pt.leaderYCoord},x2=${report.timeline[st.index + 1].xCoord},y2=${report.timeline[st.index + 1].leaderYCoord}"
+                                  stroke="#172f3b" stroke-width="2.5"/>
+                            <line th:if="${pt.employeeYCoord != null and report.timeline[st.index + 1].employeeYCoord != null}"
+                                  th:attr="x1=${pt.xCoord},y1=${pt.employeeYCoord},x2=${report.timeline[st.index + 1].xCoord},y2=${report.timeline[st.index + 1].employeeYCoord}"
+                                  stroke="#c2410c" stroke-width="3"/>
+                        </g>
+
+                        <!-- Punkte & Beschriftungen -->
+                        <g th:each="pt : ${report.timeline}">
+                            <circle th:if="${pt.leaderYCoord != null}"
+                                    th:attr="cx=${pt.xCoord},cy=${pt.leaderYCoord}" r="5.5" fill="#172f3b" stroke="#fff" stroke-width="1.5"/>
+                            <circle th:if="${pt.employeeYCoord != null}"
+                                    th:attr="cx=${pt.xCoord},cy=${pt.employeeYCoord}" r="6" fill="#fff" stroke="#c2410c" stroke-width="3"/>
+                            <text th:if="${pt.employeeTotal != null}"
+                                  th:attr="x=${pt.xCoord},y=${pt.employeeYCoord - 11}"
+                                  font-size="11" font-weight="700" fill="#9a3412" text-anchor="middle"
+                                  th:text="${#numbers.formatDecimal(pt.employeeTotal, 1, 'POINT', 2, 'COMMA')}"></text>
+                            <text th:attr="x=${pt.xCoord}" y="188" font-size="11" font-weight="600" fill="#172f3b" text-anchor="middle"
+                                  th:text="${pt.roundName}"></text>
+                        </g>
+                    </svg>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Runde</th>
+                        <th>Führungskraft</th>
+                        <th>Team-Ø</th>
+                        <th>Antworten</th>
+                        <th>Blind Spot (Team − FK)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="pt : ${report.timeline}">
+                        <td><strong th:text="${pt.roundName}"></strong></td>
+                        <td th:text="${pt.leaderTotal != null ? #numbers.formatDecimal(pt.leaderTotal, 1, 'POINT', 2, 'COMMA') : '–'}"></td>
+                        <td th:text="${pt.employeeTotal != null ? #numbers.formatDecimal(pt.employeeTotal, 1, 'POINT', 2, 'COMMA') : '–'}"></td>
+                        <td th:text="${pt.employeeCount}"></td>
+                        <td th:text="${pt.blindSpot != null ? ((pt.blindSpot >= 0 ? '+' : '') + #numbers.formatDecimal(pt.blindSpot, 1, 'POINT', 2, 'COMMA')) : '–'}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Detailvergleich je Kategorie -->
+        <section class="results-card" style="margin-bottom: 24px;" aria-labelledby="compare-areas-title">
+            <h2 id="compare-areas-title">Die fünf Bereiche im direkten Vergleich</h2>
+            <p class="section-description">Gegenüberstellung von Selbstbild (Führungskraft) und Fremdbild (Team) inkl. gemeldeter Situationen und konkreter Handlungsschritte.</p>
+
+            <div class="compare-markers-legend">
+                <span><span class="dot-sample dot-leader"></span> Führungskraft (Selbstbild)</span>
+                <span><span class="dot-sample dot-employee"></span> Team-Mittelwert (Fremdbild)</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: var(--sev-low);"></span> 1–2 Unauffällig</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: var(--sev-mod);"></span> 2–3,24 Beobachten</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: var(--sev-high);"></span> 3,25–5 Kritisch</span>
+            </div>
+
+            <div class="result-row" th:each="cat : ${report.categories}">
+                <div class="result-row-head">
+                    <div>
+                        <span class="result-label" th:text="${cat.category.label}"></span>
+                        <span class="severity-badge" style="margin-left: 8px;"
+                              th:classappend="| ${cat.severity.cssClass}|"
+                              th:text="${cat.severity.label}"></span>
+                        <span th:if="${cat.trend.name() != 'NO_BASELINE'}" class="trend-badge" style="margin-left: 6px;"
+                              th:classappend="| ${cat.trend.cssClass}|"
+                              th:text="|${cat.trend.arrow} ${cat.trend.label} (${cat.trendDelta >= 0 ? '+' : ''}${#numbers.formatDecimal(cat.trendDelta, 1, 'POINT', 2, 'COMMA')})|"></span>
+                    </div>
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px;">
+                        <span>Führungskraft:
+                            <strong th:text="${cat.leaderScore != null ? #numbers.formatDecimal(cat.leaderScore, 1, 'POINT', 2, 'COMMA') : '–'}"></strong>
+                        </span>
+                        <span>Team-Ø:
+                            <strong class="score-text" th:classappend="| ${cat.severity.cssClass}|"
+                                    th:text="${cat.employeeScore != null ? #numbers.formatDecimal(cat.employeeScore, 1, 'POINT', 2, 'COMMA') : '–'}"></strong>
+                            <small th:if="${cat.employeeMin != null and cat.employeeMax != null and report.employeeCount > 1}"
+                                   th:text="| (Spanne ${#numbers.formatDecimal(cat.employeeMin, 1, 'POINT', 1, 'COMMA')}–${#numbers.formatDecimal(cat.employeeMax, 1, 'POINT', 1, 'COMMA')})|"></small>
+                        </span>
+                        <span th:if="${cat.blindSpotDelta != null}">
+                            Lücke:
+                            <strong th:text="${(cat.blindSpotDelta >= 0 ? '+' : '') + #numbers.formatDecimal(cat.blindSpotDelta, 1, 'POINT', 2, 'COMMA')}"></strong>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="spectrum-track" aria-hidden="true">
+                    <span th:if="${cat.leaderScore != null and cat.employeeScore != null}"
+                          class="gap-span"
+                          th:style="|left: ${cat.gapStartPercent()}%; width: ${cat.gapWidthPercent()}%;|"></span>
+                    <span th:if="${cat.leaderScore != null}"
+                          class="result-dot marker-leader"
+                          th:style="|--score-position: ${cat.leaderPositionPercent()}%;|"
+                          title="Führungskraft"></span>
+                    <span th:if="${cat.employeeScore != null}"
+                          class="result-dot marker-employee"
+                          th:style="|--score-position: ${cat.employeePositionPercent()}%;|"
+                          title="Team-Mittelwert"></span>
+                </div>
+                <div class="scale-ticks" aria-hidden="true">
+                    <span>1 (niedrig)</span><span>2</span><span>3</span><span>4</span><span>5 (kritisch)</span>
+                </div>
+
+                <div class="category-detail-grid">
+                    <div class="situation-box">
+                        <h3>Typische Situationen für „<span th:text="${cat.category.label}"></span>“</h3>
+                        <p style="margin: 0 0 8px; color: var(--muted);" th:text="${cat.guidance.overview}"></p>
+                        <ul>
+                            <li th:each="sit : ${cat.guidance.typicalSituations}" th:text="${sit}"></li>
+                        </ul>
+
+                        <div th:if="${!#lists.isEmpty(cat.categoryNotes)}" style="margin-top: 12px;">
+                            <strong style="font-size: 12px;">Konkrete Meldungen aus dieser Runde:</strong>
+                            <div class="note-list">
+                                <div class="note-item" th:each="note : ${cat.categoryNotes}">
+                                    <div class="note-meta">
+                                        <span class="pill pill-role" th:text="${note.role.shortLabel}"></span>
+                                        <span th:each="tag : ${note.tags}" class="pill" th:text="${tag}"></span>
+                                    </div>
+                                    <div th:text="${note.text}"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${cat.severity.actionRecommended}" class="guidance-columns">
+                        <div class="guidance-box guidance-leader">
+                            <h3>Führungskraft: Wie kann ich dieses Verhalten ändern?</h3>
+                            <ul>
+                                <li th:each="tip : ${cat.guidance.leaderChangeActions}" th:text="${tip}"></li>
+                            </ul>
+                        </div>
+                        <div class="guidance-box guidance-employee">
+                            <h3>Mitarbeitende: Wie schützen &amp; Führungskraft ansprechen?</h3>
+                            <ul>
+                                <li th:each="tip : ${cat.guidance.employeeDefenseActions}" th:text="${tip}"></li>
+                            </ul>
+                            <p style="margin: 10px 0 0;" th:text="${cat.guidance.employeeAddressGuide}"></p>
+                            <p class="script-quote" th:text="${cat.guidance.employeeConversationExample}"></p>
+                        </div>
+                    </div>
+
+                    <details th:if="${!cat.severity.actionRecommended}" class="details-toggle">
+                        <summary>Handlungsempfehlungen für beide Seiten einblenden</summary>
+                        <div class="guidance-columns" style="margin-top: 10px;">
+                            <div class="guidance-box guidance-leader">
+                                <h3>Führungskraft: Verhalten stärken</h3>
+                                <ul>
+                                    <li th:each="tip : ${cat.guidance.leaderChangeActions}" th:text="${tip}"></li>
+                                </ul>
+                            </div>
+                            <div class="guidance-box guidance-employee">
+                                <h3>Mitarbeitende: Schutz &amp; Ansprache</h3>
+                                <ul>
+                                    <li th:each="tip : ${cat.guidance.employeeDefenseActions}" th:text="${tip}"></li>
+                                </ul>
+                                <p style="margin: 10px 0 0;" th:text="${cat.guidance.employeeAddressGuide}"></p>
+                                <p class="script-quote" th:text="${cat.guidance.employeeConversationExample}"></p>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Häufigste Situationen + Denkanstoß -->
+        <div class="grid-2">
+            <section class="card" aria-labelledby="tags-title">
+                <p class="eyebrow">Wo tritt das Verhalten auf?</p>
+                <h2 id="tags-title" style="margin: 0 0 10px; font-size: 19px;">Gemeldete Situationen in <span th:text="${report.selectedRound}"></span></h2>
+                <div th:if="${#lists.isEmpty(report.situationTagCounts)}" class="field-hint">
+                    In dieser Runde wurden noch keine Situations-Tags ausgewählt.
+                </div>
+                <div th:if="${!#lists.isEmpty(report.situationTagCounts)}" class="tag-grid">
+                    <span class="pill" th:each="tc : ${report.situationTagCounts}"
+                          th:text="|${tc.tag} (${tc.count}×)|"></span>
+                </div>
+                <div th:if="${!#lists.isEmpty(report.generalSituationNotes)}" class="note-list" style="margin-top: 14px;">
+                    <div class="note-item" th:each="note : ${report.generalSituationNotes}">
+                        <div class="note-meta">
+                            <span class="pill pill-role" th:text="${note.role.shortLabel}"></span>
+                            <span th:each="tag : ${note.tags}" class="pill" th:text="${tag}"></span>
+                        </div>
+                        <div th:text="${note.text}"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="reflection-card" aria-labelledby="team-prompt-title">
+                <p class="eyebrow" th:text="${report.thinkingPromptHeadline}">Denkanstoß</p>
+                <h2 id="team-prompt-title">Impuls fürs nächste Gespräch</h2>
+                <p th:text="${report.thinkingPromptText}"></p>
+                <div th:if="${!#lists.isEmpty(report.reflectionNotes)}" class="note-list">
+                    <div class="note-item" style="color: var(--ink);" th:each="ref : ${report.reflectionNotes}">
+                        <div class="note-meta">
+                            <span class="pill pill-role" th:text="${ref.role.shortLabel}"></span>
+                            <span>Anonymisierte Reflexion</span>
+                        </div>
+                        <div th:text="${ref.text}"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <span>chefsache · Führung reflektieren.</span>
+        <span>Fragebogen &amp; Team-Vergleich zu ausbeuterischem Führungsverhalten</span>
+    </div>
+</footer>
+</body>
+</html>
