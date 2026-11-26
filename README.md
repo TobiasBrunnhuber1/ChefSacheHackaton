@@ -49,3 +49,8 @@ Unter macOS/Linux: `sh mvnw test`.
 ## Technik
 
 Java 23, Spring Boot 3.3.4, Spring Data JPA, H2 (dateibasierte lokale Datenbank unter `./data/chefsache`), Thymeleaf, Maven, HTML/CSS und JavaScript.
+
+## Mitwirkende
+
+- Tobias Brunnhuber
+- Aaron
