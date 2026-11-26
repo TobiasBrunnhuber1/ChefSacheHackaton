@@ -7,33 +7,154 @@
     <link rel="stylesheet" href="/css/chefsache.css">
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-    <a class="brand" href="/quiz" aria-label="chefsache – zum Fragebogen"><span class="brand-image-frame"><img class="brand-image" src="/images/chefsache-logo-white.png" alt="ChefSache – Analyse · Reflexion · Erfolg" width="1678" height="937" fetchpriority="high"></span></a>
-    <span class="header-note">Perspektiven auf Führung</span>
-</div></header>
+<header class="site-header">
+    <div class="header-inner">
+        <a class="brand" href="/" aria-label="chefsache – Startseite">
+            <span class="brand-image-frame"><img class="brand-image" src="/images/chefsache-logo-white.png" alt="ChefSache – Analyse · Reflexion · Erfolg" width="1678" height="937" fetchpriority="high"></span>
+        </a>
+        <nav class="site-nav" aria-label="Hauptnavigation">
+            <a class="nav-link" href="/">Start &amp; Links</a>
+            <a class="nav-link" href="/quiz">Fragebogen</a>
+            <a class="nav-link" th:href="@{/compare(team=${submission.teamCode},round=${submission.roundName})}">Team-Vergleich</a>
+        </nav>
+    </div>
+</header>
 <main class="page">
-    <section class="hero" aria-labelledby="page-title"><p class="eyebrow">Ihre Auswertung</p>
-        <h1 id="page-title">Ihre Wahrnehmung.<br>Auf einen Blick.</h1>
-        <p class="intro">Ihre Antworten zeigen, wie stark Sie den Aussagen in den fünf Bereichen zustimmen. Alle Ergebnisse werden als Mittelwert auf einer Skala von 1 bis 5 dargestellt.</p>
-        <div class="meta"><span class="pill">15 Aussagen beantwortet</span><span class="pill">5 Bereiche ausgewertet</span></div>
+    <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow" th:text="|Ihre Auswertung · ${submission.role.label}|">Ihre Auswertung</p>
+        <h1 id="page-title">Ihre Wahrnehmung.<br>Mit Kontext &amp; nächsten Schritten.</h1>
+        <p class="intro">Alle Ergebnisse werden auf einer Skala von 1 (unauffällig) bis 5 (stark ausgeprägt) dargestellt. Bei erhöhten Werten erhalten Sie konkrete Impulse für Veränderung sowie für Selbstschutz und Ansprache.</p>
+        <div class="meta">
+            <span class="pill pill-role" th:text="${submission.role.shortLabel}"></span>
+            <span class="pill" th:text="|Team: ${submission.teamCode}|"></span>
+            <span class="pill" th:text="|Runde: ${submission.roundName}|"></span>
+            <span class="pill">In Datenbank gespeichert</span>
+        </div>
     </section>
+
     <div class="result-layout">
-        <section class="summary-card" aria-labelledby="overall-title"><h2 class="eyebrow" id="overall-title">Gesamtmittelwert</h2>
+        <section class="summary-card" aria-labelledby="overall-title">
+            <h2 class="eyebrow" id="overall-title">Gesamtmittelwert</h2>
             <div class="score-big" th:text="${#numbers.formatDecimal(totalScore, 1, 'POINT', 2, 'COMMA')}"></div>
             <span class="score-unit">von 5 möglichen Punkten</span>
-            <p>Der Gesamtwert ist der Mittelwert Ihrer Antworten auf alle 15 Aussagen. Jede Aussage geht gleich stark in die Auswertung ein.</p>
+            <span class="severity-badge" th:classappend="| ${overallSeverity.cssClass}|" th:text="${overallSeverity.label}"></span>
+            <p class="summary-desc" th:text="${overallSeverity.summary}"></p>
         </section>
-        <section class="results-card" aria-labelledby="areas-title"><h2 id="areas-title">Die fünf Bereiche im Detail</h2><p class="section-description">Jeweils der Mittelwert aus drei Aussagen.</p>
-            <div class="result-row" th:each="entry : ${scores}">
-                <div class="result-row-head"><div><span class="result-label" th:text="${entry.key.label}"></span><span class="result-code" th:text="${entry.key.code}"></span></div><span class="result-value"><span th:text="${#numbers.formatDecimal(entry.value, 1, 'POINT', 2, 'COMMA')}"></span> <small>/ 5</small></span></div>
-                <div class="result-track" aria-hidden="true" th:style="|--score-position: ${(entry.value - 1) * 25}%;|"><span class="result-dot"></span></div>
-                <div class="scale-ticks" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+
+        <section class="results-card" aria-labelledby="areas-title">
+            <h2 id="areas-title">Die fünf Bereiche im Detail</h2>
+            <p class="section-description">Jeweils der Mittelwert aus drei Aussagen inklusive typischer Situationen und Empfehlungen.</p>
+
+            <div class="scale-legend" aria-label="Farbskala-Legende">
+                <span class="legend-item"><span class="legend-swatch" style="background: var(--sev-low);"></span> 1,00–2,00 Unauffällig</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: var(--sev-mod);"></span> 2,01–3,24 Aufmerksamkeitsbedarf</span>
+                <span class="legend-item"><span class="legend-swatch" style="background: var(--sev-high);"></span> 3,25–5,00 Kritisch</span>
+            </div>
+
+            <div class="result-row" th:each="detail : ${categoryDetails}">
+                <div class="result-row-head">
+                    <div>
+                        <span class="result-label" th:text="${detail.category.label}"></span>
+                        <span class="result-code" th:text="${detail.category.code}"></span>
+                        <span class="severity-badge" style="margin-left: 8px;"
+                              th:classappend="| ${detail.severity.cssClass}|"
+                              th:text="${detail.severity.label}"></span>
+                    </div>
+                    <span class="result-value score-text" th:classappend="| ${detail.severity.cssClass}|">
+                        <span th:text="${#numbers.formatDecimal(detail.score, 1, 'POINT', 2, 'COMMA')}"></span>
+                        <small>/ 5</small>
+                    </span>
+                </div>
+
+                <div class="spectrum-track" aria-hidden="true">
+                    <span class="result-dot" th:style="|--score-position: ${detail.positionPercent()}%;|"></span>
+                </div>
+                <div class="scale-ticks" aria-hidden="true">
+                    <span>1 (niedrig)</span><span>2</span><span>3</span><span>4</span><span>5 (kritisch)</span>
+                </div>
+
+                <div class="category-detail-grid">
+                    <div class="situation-box">
+                        <h3>Wann tritt dieses Verhalten typischerweise auf?</h3>
+                        <p style="margin: 0 0 8px; color: var(--muted);" th:text="${detail.guidance.overview}"></p>
+                        <ul>
+                            <li th:each="sit : ${detail.guidance.typicalSituations}" th:text="${sit}"></li>
+                        </ul>
+                    </div>
+
+                    <div th:if="${detail.severity.actionRecommended}" class="guidance-columns">
+                        <div class="guidance-box guidance-leader">
+                            <h3>Für Führungskräfte: Wie kann ich dieses Verhalten ändern?</h3>
+                            <ul>
+                                <li th:each="tip : ${detail.guidance.leaderChangeActions}" th:text="${tip}"></li>
+                            </ul>
+                        </div>
+                        <div class="guidance-box guidance-employee">
+                            <h3>Für Mitarbeitende: Wie kann ich mich schützen &amp; ansprechen?</h3>
+                            <ul>
+                                <li th:each="tip : ${detail.guidance.employeeDefenseActions}" th:text="${tip}"></li>
+                            </ul>
+                            <p style="margin: 10px 0 0;" th:text="${detail.guidance.employeeAddressGuide}"></p>
+                            <p class="script-quote" th:text="${detail.guidance.employeeConversationExample}"></p>
+                        </div>
+                    </div>
+
+                    <details th:if="${!detail.severity.actionRecommended}" class="details-toggle">
+                        <summary>Vorbeugende Impulse &amp; Gesprächshilfen anzeigen</summary>
+                        <div class="guidance-columns" style="margin-top: 10px;">
+                            <div class="guidance-box guidance-leader">
+                                <h3>Für Führungskräfte: Verhalten reflektieren</h3>
+                                <ul>
+                                    <li th:each="tip : ${detail.guidance.leaderChangeActions}" th:text="${tip}"></li>
+                                </ul>
+                            </div>
+                            <div class="guidance-box guidance-employee">
+                                <h3>Für Mitarbeitende: Schutz &amp; Ansprache</h3>
+                                <ul>
+                                    <li th:each="tip : ${detail.guidance.employeeDefenseActions}" th:text="${tip}"></li>
+                                </ul>
+                                <p style="margin: 10px 0 0;" th:text="${detail.guidance.employeeAddressGuide}"></p>
+                                <p class="script-quote" th:text="${detail.guidance.employeeConversationExample}"></p>
+                            </div>
+                        </div>
+                    </details>
+                </div>
             </div>
         </section>
     </div>
-    <aside class="guide"><span class="guide-icon" aria-hidden="true">i</span><div><h2>So lesen Sie Ihre Ergebnisse</h2><p>1 steht für „stimme überhaupt nicht zu“, 3 für „weder noch“ und 5 für „stimme voll und ganz zu“. Höhere Mittelwerte entsprechen stärkerer Zustimmung zu den Aussagen über ausbeuterisches Führungsverhalten.</p></div></aside>
-    <div class="result-actions"><a class="button" href="/quiz">Fragebogen erneut ausfüllen <span class="button-arrow" aria-hidden="true">↗</span></a></div>
+
+    <section class="reflection-card" aria-labelledby="prompt-title">
+        <p class="eyebrow" th:text="|Denkanstoß · Fokus: ${topCategory.label}|">Denkanstoß</p>
+        <h2 id="prompt-title">Frage zum Mitnehmen</h2>
+        <p th:text="${topGuidance.thinkingPrompt}"></p>
+        <div th:if="${submission.reflectionNote != null}" class="note-item" style="color: var(--ink); margin-top: 12px;">
+            <div class="note-meta"><strong>Ihre eigene Notiz aus dem Fragebogen</strong></div>
+            <div th:text="${submission.reflectionNote}"></div>
+        </div>
+        <div th:if="${submission.situationNote != null}" class="note-item" style="color: var(--ink); margin-top: 10px;">
+            <div class="note-meta">
+                <strong>Ihre gemeldete Situation</strong>
+                <span th:if="${submission.situationCategory != null}" class="pill" th:text="${submission.situationCategory.label}"></span>
+            </div>
+            <div th:text="${submission.situationNote}"></div>
+        </div>
+    </section>
+
+    <div class="result-actions">
+        <a class="button button-secondary" th:href="@{/quiz(role=${submission.role.name()},team=${submission.teamCode},round=${submission.roundName})}">
+            Fragebogen erneut ausfüllen <span class="button-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="button" th:href="@{/compare(team=${submission.teamCode},round=${submission.roundName})}">
+            Zur Team-Gegenüberstellung <span class="button-arrow" aria-hidden="true">→</span>
+        </a>
+    </div>
 </main>
-<footer class="site-footer"><div class="footer-inner"><span>chefsache · Führung reflektieren.</span><span>Fragebogen zu ausbeuterischem Führungsverhalten</span></div></footer>
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <span>chefsache · Führung reflektieren.</span>
+        <span>Fragebogen &amp; Team-Vergleich zu ausbeuterischem Führungsverhalten</span>
+    </div>
+</footer>
 </body>
 </html>

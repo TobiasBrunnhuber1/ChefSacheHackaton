@@ -1,19 +1,22 @@
 # chefsache
 
-Spring-Boot-Webanwendung zur Reflexion ausbeuterischen Führungsverhaltens.
-Der Fragebogen umfasst 15 englischsprachige Aussagen mit einer fünfstufigen Likert-Skala.
-Die Auswertung zeigt die Mittelwerte für Egoismus, Druck, Entwicklungshemmung,
-Vereinnahmung von Leistungen und Manipulation sowie den Gesamtmittelwert.
+Spring-Boot-Webanwendung zur Reflexion und Gegenüberstellung von Führungsverhalten (Selbstbild Führungskraft vs. anonymes Team-Feedback).
+Der Fragebogen umfasst 15 deutschsprachige Aussagen in fünf Bereichen auf einer fünfstufigen Likert-Skala sowie optionale Situations-Tags, konkrete Verhaltensbeschreibungen und ein Denkanstoß-Feld.
+
+## Funktionen
+
+- **Start-Hub (`/`)**: Team-Code und Runde festlegen, Einladungslinks für Führungskraft und Mitarbeitende (inkl. lokaler Netzwerk-IP) kopieren oder ein 2-Runden-Demo-Szenario laden.
+- **Fragebogen (`/quiz`)**: Rollenabhängige Formulierung für Mitarbeitende (Fremdbild) und Führungskraft (Ich-Form), Situations-Tags, Freitext für Verhaltensmuster und Denkanstoß-Feld.
+- **Auswertung (`/quiz/submit`)**: Ampel-Farbskala (Unauffällig / Aufmerksamkeitsbedarf / Kritisch), Erklärung typischer Situationen sowie beidseitige Handlungsempfehlungen.
+- **Team-Vergleich (`/compare`)**: Gegenüberstellung Selbst- vs. Fremdbild (Blind Spot), gesammelte Situationen und Verlaufsdiagramm über mehrere Erhebungsrunden (*„Bessert sich das Verhalten?“*).
 
 ## Voraussetzungen
 
-- JDK 23 (JAVA_HOME auf die lokale JDK-Installation setzen)
+- JDK 23 (bzw. kompatibles JDK 21+ mit `-Djava.version=21`)
 - Internetzugang beim ersten Build zum Laden der Maven-Abhängigkeiten
 - Maven wird über den enthaltenen Maven Wrapper bereitgestellt.
 
 ## Lokal starten
-
-Repository klonen oder als ZIP herunterladen und im Projektordner ausführen.
 
 Windows / PowerShell:
 
@@ -27,20 +30,13 @@ macOS / Linux:
 sh mvnw spring-boot:run
 ```
 
-Danach im Browser öffnen: http://localhost:8080/quiz
+Danach im Browser öffnen: `http://localhost:8080/` (bzw. für Mitarbeitende im selben WLAN über die auf der Startseite angezeigte lokale IP).
 
-Mit Strg+C beenden. Falls Port 8080 belegt ist:
+Mit `Strg+C` beenden. Falls Port 8080 belegt ist:
 
 ```powershell
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"
 ```
-
-Die Seite ist dann unter http://localhost:8081/quiz erreichbar.
-
-## IntelliJ IDEA
-
-Den Projektordner oder die pom.xml öffnen, das Projekt-SDK auf JDK 23 setzen und
-`RecommenderSystemApplication.main()` starten.
 
 ## Tests
 
@@ -50,15 +46,9 @@ Den Projektordner oder die pom.xml öffnen, das Projekt-SDK auf JDK 23 setzen un
 
 Unter macOS/Linux: `sh mvnw test`.
 
-## Zusammenarbeit
-
-Für Änderungen einen eigenen Branch anlegen, Änderungen committen und über einen Pull Request vorschlagen.
-Ein öffentliches Repository erlaubt das Lesen und Klonen. Direkter Schreibzugriff setzt eine Einladung als Collaborator voraus.
-
 ## Technik
 
-Java 23, Spring Boot 3.3.4, Thymeleaf, Maven, HTML/CSS und JavaScript.
-Es ist keine Datenbank erforderlich; Antworten werden für die Auswertung verarbeitet und nicht dauerhaft gespeichert.
+Java 23, Spring Boot 3.3.4, Spring Data JPA, H2 (dateibasierte lokale Datenbank unter `./data/chefsache`), Thymeleaf, Maven, HTML/CSS und JavaScript.
 
 ## Mitwirkende
 
