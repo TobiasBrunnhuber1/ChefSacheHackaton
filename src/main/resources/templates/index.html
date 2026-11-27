@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>chefsache – Team-Hub &amp; Erhebungslinks</title>
+    <link rel="stylesheet" href="/css/chefsache.css">
+    <script src="/js/questionnaire.js" defer></script>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: siteHeader('hub', null, null)}"></div>
+
+<main class="page">
+    <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">Lokaler Server · Selbst- &amp; Fremdbild</p>
+        <h1 id="page-title">Führung gemeinsam<br>sichtbar machen.</h1>
+        <p class="intro">Laden Sie Mitarbeitende und Führungskraft über denselben lokalen Server zu einer anonymen Erhebung ein, stellen Sie Selbst- und Fremdbild gegenüber und verfolgen Sie, ob sich Verhalten über mehrere Runden bessert.</p>
+        <div class="meta">
+            <span class="pill">15 Aussagen auf Deutsch</span>
+            <span class="pill">Lokale H2-Datenbank</span>
+            <span class="pill">QR-Code im lokalen WLAN</span>
+            <span class="pill">Kein Login nötig</span>
+        </div>
+    </section>
+
+    <aside class="guide">
+        <span class="guide-icon" aria-hidden="true">i</span>
+        <div>
+            <h2>So starten Sie eine Erhebung im Team (auch im lokalen WLAN)</h2>
+            <p>Vergeben Sie unten einen einfachen <strong>Team-Code</strong> und einen <strong>Runden-Namen</strong> (z. B. <strong>Runde 1</strong>). Alle Personen im selben Netzwerk können den Mitarbeiter-Link direkt über <strong th:text="${baseUrl}"></strong> oder per QR-Code aufrufen und anonym ausfüllen.</p>
+        </div>
+    </aside>
+
+    <section class="context-bar" aria-label="Team und Runde festlegen">
+        <div class="field-group">
+            <label for="hub-team">Team-Code</label>
+            <input id="hub-team" type="text" th:value="${teamCode}" th:attr="data-base-url=${baseUrl}" placeholder="z. B. team-nord">
+        </div>
+        <div class="field-group">
+            <label for="hub-round">Erhebungsrunde / Zeitpunkt</label>
+            <input id="hub-round" type="text" th:value="${roundName}" placeholder="z. B. Runde 1">
+        </div>
+        <div class="field-group">
+            <span class="field-label">Direkt zur Auswertung</span>
+            <a id="compare-start-btn" class="button button-dark" th:href="@{/compare(team=${teamCode},round=${roundName})}">
+                Gegenüberstellung öffnen <span class="button-arrow" aria-hidden="true">→</span>
+            </a>
+        </div>
+    </section>
+
+    <form action="/teams/settings" method="post" class="settings-bar">
+        <input id="settings-team" type="hidden" name="team" th:value="${teamCode}">
+        <input id="settings-round" type="hidden" name="round" th:value="${roundName}">
+        <input type="hidden" name="returnTo" value="hub">
+        <label class="settings-toggle">
+            <input type="checkbox" name="anonymityProtected" value="true" th:checked="${anonymityProtected}">
+            <span><strong>Anonymitätsschutz aktivieren:</strong> Detailauswertung für dieses Team erst ab 3 Mitarbeiter-Antworten freigeben</span>
+        </label>
+        <button type="submit" class="button button-secondary" style="padding: 8px 14px;">Einstellung speichern</button>
+    </form>
+
+    <div class="grid-2">
+        <section class="card" aria-labelledby="leader-card-title">
+            <p class="eyebrow">Perspektive 1 · Selbstbild</p>
+            <h2 id="leader-card-title" style="margin: 0 0 8px;">Führungskraft</h2>
+            <p class="field-hint" style="margin-bottom: 16px;">Beantworten Sie die 15 Aussagen aus der Ich-Perspektive und reflektieren Sie typische Situationen. Ihr Ergebnis wird mit den anonymen Antworten des Teams verglichen.</p>
+            <a id="leader-start-btn" class="button" th:href="@{/quiz(role='LEADER',team=${teamCode},round=${roundName})}">
+                Als Führungskraft starten <span class="button-arrow" aria-hidden="true">→</span>
+            </a>
+            <div class="share-box">
+                <span id="leader-share-url" class="share-url" th:text="${leaderLink}"></span>
+                <button type="button" class="copy-btn" data-copy-target="leader-share-url">Kopieren</button>
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="employee-card-title">
+            <p class="eyebrow">Perspektive 2 · Fremdbild (Anonym)</p>
+            <h2 id="employee-card-title" style="margin: 0 0 8px;">Mitarbeitende</h2>
+            <p class="field-hint" style="margin-bottom: 16px;">Teilen Sie Ihre Wahrnehmung anonym, benennen Sie konkrete Situationen und erhalten Sie bei belastenden Scores Schutz- und Gesprächsstrategien.</p>
+            <a id="employee-start-btn" class="button" th:href="@{/quiz(role='EMPLOYEE',team=${teamCode},round=${roundName})}">
+                Als Mitarbeiter/in starten <span class="button-arrow" aria-hidden="true">→</span>
+            </a>
+            <div class="share-box">
+                <span id="employee-share-url" class="share-url" th:text="${employeeLink}"></span>
+                <button type="button" class="copy-btn" data-copy-target="employee-share-url">Kopieren</button>
+            </div>
+            <div class="qr-box">
+                <img id="employee-qr-img" class="qr-code-img" th:src="${employeeQrSrc}"
+                     alt="QR-Code für den anonymen Mitarbeiter-Fragebogen" width="108" height="108">
+                <div>
+                    <strong style="font-size: 13px; display: block; margin-bottom: 4px;">Direkt per Smartphone scannen</strong>
+                    <p class="field-hint">Im selben WLAN einfach Kamera auf den QR-Code richten – kein Login und keine App nötig.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="card" style="margin-top: 22px;" aria-labelledby="teams-title">
+        <div class="result-row-head" style="margin-bottom: 14px;">
+            <div>
+                <h2 id="teams-title" style="margin: 0 0 4px; font-size: 19px;">Gespeicherte Teams &amp; Runden</h2>
+                <p class="section-description" style="margin: 0;">Alle bereits in der Datenbank erfassten Erhebungen auf einen Blick.</p>
+            </div>
+            <form action="/demo/seed" method="post">
+                <button type="submit" class="button button-secondary">
+                    Demo-Szenario laden (2 Runden: Vorher / Nachher)
+                </button>
+            </form>
+        </div>
+
+        <div class="share-box" style="margin-bottom: 16px;">
+            <span class="field-hint" style="margin: 0;"><strong>Vergleichs-Link:</strong> <span id="compare-share-url" class="share-url" th:text="${compareLink}"></span></span>
+            <button type="button" class="copy-btn" data-copy-target="compare-share-url">Kopieren</button>
+        </div>
+
+        <div th:if="${#lists.isEmpty(teamOverviews)}" class="situation-box">
+            <p style="margin: 0;">Noch keine Erhebungen in der Datenbank gespeichert. Starten Sie oben einen Fragebogen oder laden Sie das <strong>Demo-Szenario</strong>, um Gegenüberstellung und Verlauf sofort zu testen.</p>
+        </div>
+
+        <div th:if="${!#lists.isEmpty(teamOverviews)}" class="chart-wrap">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Team-Code</th>
+                <th>Runden</th>
+                <th>Abgaben gesamt</th>
+                <th>Aktuelle Runde</th>
+                <th>Team-Ø (letzte Runde)</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="team : ${teamOverviews}">
+                <td>
+                    <strong th:text="${team.teamCode}"></strong>
+                    <span th:if="${team.anonymityProtected}" class="pill" style="margin-left: 6px; font-size: 11px;">Ab 3 Antworten</span>
+                </td>
+                <td th:text="${team.roundCount}"></td>
+                <td th:text="${team.totalSubmissions}"></td>
+                <td th:text="${team.latestRoundName}"></td>
+                <td>
+                    <span th:if="${team.latestEmployeeScore != null}"
+                          th:text="${#numbers.formatDecimal(team.latestEmployeeScore, 1, 'POINT', 2, 'COMMA')} + ' / 5'"></span>
+                    <span th:if="${team.latestEmployeeScore == null}" class="field-hint">Noch keine Team-Antwort</span>
+                </td>
+                <td style="text-align: right;">
+                    <div style="display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                        <a class="button button-secondary" style="padding: 7px 12px;" th:href="@{/compare(team=${team.teamCode})}">
+                            Auswertung →
+                        </a>
+                        <form action="/teams/delete" method="post" onsubmit="return confirm('Alle gespeicherten Daten für dieses Team wirklich löschen?');">
+                            <input type="hidden" name="team" th:value="${team.teamCode}">
+                            <button type="submit" class="button button-danger-subtle" style="padding: 7px 10px;">Löschen</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/layout :: siteFooter}"></div>
+</body>
+</html>

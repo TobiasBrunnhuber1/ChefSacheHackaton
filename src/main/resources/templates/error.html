@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>chefsache – Hinweis</title>
+    <link rel="stylesheet" href="/css/chefsache.css">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: siteHeader('none', null, null)}"></div>
+
+<main class="page">
+    <section class="hero" aria-labelledby="error-title">
+        <p class="eyebrow" th:text="|Status ${status != null ? status : 400}|">Hinweis</p>
+        <h1 id="error-title" th:if="${status == 404}">Diese Seite wurde nicht gefunden.</h1>
+        <h1 id="error-title" th:if="${status == 405}">Diese Seite ist nur über ein Formular aufrufbar.</h1>
+        <h1 id="error-title" th:if="${status != 404 and status != 405}">Diese Anfrage konnte nicht verarbeitet werden.</h1>
+
+        <p class="intro" th:if="${status == 404}">Die aufgerufene Adresse existiert nicht oder wurde verschoben.</p>
+        <p class="intro" th:if="${status == 405}">Bitte starten Sie den Fragebogen regulär über die Startseite oder die Navigation.</p>
+        <p class="intro" th:if="${status != 404 and status != 405}"
+           th:text="${message != null and !message.isBlank()} ? ${message} : 'Bitte prüfen Sie Ihre Eingaben oder kehren Sie zur Startseite zurück.'"></p>
+    </section>
+
+    <div class="card" style="max-width: 640px;">
+        <p th:if="${status == 400}" style="margin-top: 0; color: var(--muted);">Falls Sie den Fragebogen ausgefüllt haben, achten Sie bitte darauf, dass alle 15 Aussagen mit einem Wert von 1 bis 5 beantwortet wurden.</p>
+        <p th:if="${status != 400}" style="margin-top: 0; color: var(--muted);">Über die Startseite gelangen Sie direkt zu den Erhebungslinks, zum Fragebogen und zum Team-Vergleich.</p>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px;">
+            <a class="button" href="/">Zur Startseite →</a>
+            <a class="button button-secondary" href="/quiz">Zum Fragebogen</a>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: siteFooter}"></div>
+</body>
+</html>
