@@ -7,18 +7,8 @@
     <link rel="stylesheet" href="/css/chefsache.css">
 </head>
 <body>
-<header class="site-header">
-    <div class="header-inner">
-        <a class="brand" href="/" aria-label="chefsache – Startseite">
-            <span class="brand-image-frame"><img class="brand-image" src="/images/chefsache-logo-white.png" alt="ChefSache – Analyse · Reflexion · Erfolg" width="1678" height="937" fetchpriority="high"></span>
-        </a>
-        <nav class="site-nav" aria-label="Hauptnavigation">
-            <a class="nav-link" href="/">Start &amp; Links</a>
-            <a class="nav-link" href="/quiz">Fragebogen</a>
-            <a class="nav-link" th:href="@{/compare(team=${submission.teamCode},round=${submission.roundName})}">Team-Vergleich</a>
-        </nav>
-    </div>
-</header>
+<div th:replace="~{fragments/layout :: siteHeader('quiz', ${submission.teamCode}, ${submission.roundName})}"></div>
+
 <main class="page">
     <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow" th:text="|Ihre Auswertung · ${submission.role.label}|">Ihre Auswertung</p>
@@ -55,7 +45,6 @@
                 <div class="result-row-head">
                     <div>
                         <span class="result-label" th:text="${detail.category.label}"></span>
-                        <span class="result-code" th:text="${detail.category.code}"></span>
                         <span class="severity-badge" style="margin-left: 8px;"
                               th:classappend="| ${detail.severity.cssClass}|"
                               th:text="${detail.severity.label}"></span>
@@ -128,7 +117,10 @@
         <h2 id="prompt-title">Frage zum Mitnehmen</h2>
         <p th:text="${topGuidance.thinkingPrompt}"></p>
         <div th:if="${submission.reflectionNote != null}" class="note-item" style="color: var(--ink); margin-top: 12px;">
-            <div class="note-meta"><strong>Ihre eigene Notiz aus dem Fragebogen</strong></div>
+            <div class="note-meta">
+                <strong>Ihre eigene Notiz aus dem Fragebogen</strong>
+                <span class="pill" th:text="${submission.shareReflectionWithTeam} ? 'Anonym im Team-Vergleich geteilt' : 'Privat (nur für Sie sichtbar)'"></span>
+            </div>
             <div th:text="${submission.reflectionNote}"></div>
         </div>
         <div th:if="${submission.situationNote != null}" class="note-item" style="color: var(--ink); margin-top: 10px;">
@@ -141,6 +133,7 @@
     </section>
 
     <div class="result-actions">
+        <button type="button" class="button button-secondary" onclick="window.print()">Auswertung drucken / PDF</button>
         <a class="button button-secondary" th:href="@{/quiz(role=${submission.role.name()},team=${submission.teamCode},round=${submission.roundName})}">
             Fragebogen erneut ausfüllen <span class="button-arrow" aria-hidden="true">↗</span>
         </a>
@@ -150,11 +143,6 @@
     </div>
 </main>
 
-<footer class="site-footer">
-    <div class="footer-inner">
-        <span>chefsache · Führung reflektieren.</span>
-        <span>Fragebogen &amp; Team-Vergleich zu ausbeuterischem Führungsverhalten</span>
-    </div>
-</footer>
+<div th:replace="~{fragments/layout :: siteFooter}"></div>
 </body>
 </html>

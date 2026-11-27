@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header th:fragment="siteHeader(activePage, compareTeam, compareRound)" class="site-header">
+    <div class="header-inner">
+        <a class="brand" href="/" aria-label="chefsache – Startseite">
+            <span class="brand-image-frame">
+                <img class="brand-image" src="/images/chefsache-logo-white.png"
+                     alt="ChefSache – Analyse · Reflexion · Erfolg"
+                     width="1678" height="937" fetchpriority="high">
+            </span>
+        </a>
+        <nav class="site-nav" aria-label="Hauptnavigation">
+            <a class="nav-link" th:classappend="${activePage == 'hub'} ? ' is-active' : ''" href="/">Start &amp; Links</a>
+            <a class="nav-link" th:classappend="${activePage == 'quiz'} ? ' is-active' : ''" href="/quiz">Fragebogen</a>
+            <a class="nav-link" th:classappend="${activePage == 'compare'} ? ' is-active' : ''"
+               th:href="${compareTeam != null} ? @{/compare(team=${compareTeam},round=${compareRound})} : @{/compare}">Team-Vergleich</a>
+        </nav>
+    </div>
+</header>
+
+<footer th:fragment="siteFooter" class="site-footer">
+    <div class="footer-inner">
+        <span>chefsache · Führung reflektieren.</span>
+        <span>Fragebogen &amp; Team-Vergleich zu ausbeuterischem Führungsverhalten</span>
+    </div>
+</footer>
+</body>
+</html>

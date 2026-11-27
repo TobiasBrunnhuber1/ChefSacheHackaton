@@ -1,5 +1,5 @@
 (() => {
-    // Fortschrittsanzeige und Rollen-Umschaltung im Fragebogen initialisieren
+    // Fortschrittsanzeige, Rollen-Umschaltung und Misch-Link im Fragebogen initialisieren
     const form = document.getElementById('questionnaire');
     if (form) {
         const panel = document.getElementById('progress-panel');
@@ -19,25 +19,41 @@
         window.addEventListener('pageshow', update);
         update();
 
-        // Übernimmt eingegebenen Team-Code und Runde beim Wechsel zwischen Führungskraft und Mitarbeitenden
+        // Übernimmt eingegebenen Team-Code und Runde beim Rollenwechsel oder Mischen
         const teamInput = document.getElementById('teamCode');
         const roundInput = document.getElementById('roundName');
+        const currentRoleInput = form.querySelector('input[name="role"]');
+        const isShuffledNow = new URLSearchParams(window.location.search).get('shuffle') === 'true';
+
+        const buildQuizUrl = (role, shuffle) => {
+            const team = teamInput ? teamInput.value.trim() : '';
+            const round = roundInput ? roundInput.value.trim() : '';
+            const params = new URLSearchParams();
+            params.set('role', role);
+            if (team) params.set('team', team);
+            if (round) params.set('round', round);
+            if (shuffle) params.set('shuffle', 'true');
+            return `/quiz?${params.toString()}`;
+        };
+
         document.querySelectorAll('[data-role-switch]').forEach((link) => {
             link.addEventListener('click', (event) => {
-                const targetRole = link.getAttribute('data-role-switch');
-                const team = teamInput ? teamInput.value.trim() : '';
-                const round = roundInput ? roundInput.value.trim() : '';
-                const params = new URLSearchParams();
-                params.set('role', targetRole);
-                if (team) params.set('team', team);
-                if (round) params.set('round', round);
                 event.preventDefault();
-                window.location.href = `/quiz?${params.toString()}`;
+                window.location.href = buildQuizUrl(link.getAttribute('data-role-switch'), isShuffledNow);
+            });
+        });
+
+        document.querySelectorAll('[data-shuffle-switch]').forEach((link) => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                const targetShuffle = link.getAttribute('data-shuffle-target') === 'true';
+                const role = currentRoleInput ? currentRoleInput.value : 'EMPLOYEE';
+                window.location.href = buildQuizUrl(role, targetShuffle);
             });
         });
     }
 
-    // Einladungslinks auf der Startseite live aktualisieren, sobald Team-Code oder Runde geändert werden
+    // Einladungslinks und QR-Code auf der Startseite live aktualisieren
     const hubTeam = document.getElementById('hub-team');
     const hubRound = document.getElementById('hub-round');
     if (hubTeam && hubRound) {
@@ -51,13 +67,14 @@
             return cleaned || 'mein-team';
         };
 
-        // Baut die Links für Führungskraft, Mitarbeitende und Team-Vergleich neu auf
+        // Baut die Links, den QR-Code und versteckte Formularfelder neu auf
         const syncLinks = () => {
             const team = normalizeTeam(hubTeam.value);
             const round = (hubRound.value || '').trim() || 'Runde 1';
             const leaderPath = `/quiz?role=LEADER&team=${encodeURIComponent(team)}&round=${encodeURIComponent(round)}`;
             const employeePath = `/quiz?role=EMPLOYEE&team=${encodeURIComponent(team)}&round=${encodeURIComponent(round)}`;
             const comparePath = `/compare?team=${encodeURIComponent(team)}&round=${encodeURIComponent(round)}`;
+            const fullEmployeeUrl = `${baseUrl}${employeePath}`;
 
             const leaderDisplay = document.getElementById('leader-share-url');
             const employeeDisplay = document.getElementById('employee-share-url');
@@ -65,13 +82,19 @@
             const leaderBtn = document.getElementById('leader-start-btn');
             const employeeBtn = document.getElementById('employee-start-btn');
             const compareBtn = document.getElementById('compare-start-btn');
+            const qrImg = document.getElementById('employee-qr-img');
+            const settingsTeam = document.getElementById('settings-team');
+            const settingsRound = document.getElementById('settings-round');
 
             if (leaderDisplay) leaderDisplay.textContent = `${baseUrl}${leaderPath}`;
-            if (employeeDisplay) employeeDisplay.textContent = `${baseUrl}${employeePath}`;
+            if (employeeDisplay) employeeDisplay.textContent = fullEmployeeUrl;
             if (compareDisplay) compareDisplay.textContent = `${baseUrl}${comparePath}`;
             if (leaderBtn) leaderBtn.href = leaderPath;
             if (employeeBtn) employeeBtn.href = employeePath;
             if (compareBtn) compareBtn.href = comparePath;
+            if (qrImg) qrImg.src = `/qr?text=${encodeURIComponent(fullEmployeeUrl)}`;
+            if (settingsTeam) settingsTeam.value = team;
+            if (settingsRound) settingsRound.value = round;
         };
         hubTeam.addEventListener('input', syncLinks);
         hubRound.addEventListener('input', syncLinks);

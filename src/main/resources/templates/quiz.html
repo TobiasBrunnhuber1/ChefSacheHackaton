@@ -8,18 +8,8 @@
     <script src="/js/questionnaire.js" defer></script>
 </head>
 <body>
-<header class="site-header">
-    <div class="header-inner">
-        <a class="brand" href="/" aria-label="chefsache – Startseite">
-            <span class="brand-image-frame"><img class="brand-image" src="/images/chefsache-logo-white.png" alt="ChefSache – Analyse · Reflexion · Erfolg" width="1678" height="937" fetchpriority="high"></span>
-        </a>
-        <nav class="site-nav" aria-label="Hauptnavigation">
-            <a class="nav-link" href="/">Start &amp; Links</a>
-            <a class="nav-link is-active" href="/quiz">Fragebogen</a>
-            <a class="nav-link" href="/compare">Team-Vergleich</a>
-        </nav>
-    </div>
-</header>
+<div th:replace="~{fragments/layout :: siteHeader('quiz', null, null)}"></div>
+
 <main class="page">
     <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow" th:text="|Führungsverhalten · ${role.label}|">Führungsverhalten · Befragung</p>
@@ -31,6 +21,10 @@
             <span class="pill">15 Aussagen</span>
             <span class="pill">5 Bereiche</span>
             <span class="pill">Skala 1 (niedrig) bis 5 (hoch)</span>
+            <a class="pill shuffle-link" data-shuffle-switch
+               th:attr="data-shuffle-target=${!shuffled}"
+               th:href="@{/quiz(role=${role.name()},team=${teamCode},round=${roundName},shuffle=${!shuffled})}"
+               th:text="${shuffled} ? 'Standardreihenfolge' : 'Reihenfolge mischen'">Reihenfolge mischen</a>
         </div>
     </section>
 
@@ -49,14 +43,12 @@
             <div class="field-group">
                 <span class="field-label">Ihre Rolle</span>
                 <div class="role-tabs">
-                    <a class="role-tab"
-                       th:classappend="${role.name() == 'EMPLOYEE'} ? ' is-active'"
+                    <a class="role-tab" th:classappend="${role.name() == 'EMPLOYEE'} ? ' is-active' : ''"
                        data-role-switch="EMPLOYEE"
-                       th:href="@{/quiz(role='EMPLOYEE',team=${teamCode},round=${roundName})}">Mitarbeitende</a>
-                    <a class="role-tab"
-                       th:classappend="${role.name() == 'LEADER'} ? ' is-active'"
+                       th:href="@{/quiz(role='EMPLOYEE',team=${teamCode},round=${roundName},shuffle=${shuffled})}">Mitarbeitende</a>
+                    <a class="role-tab" th:classappend="${role.name() == 'LEADER'} ? ' is-active' : ''"
                        data-role-switch="LEADER"
-                       th:href="@{/quiz(role='LEADER',team=${teamCode},round=${roundName})}">Führungskraft</a>
+                       th:href="@{/quiz(role='LEADER',team=${teamCode},round=${roundName},shuffle=${shuffled})}">Führungskraft</a>
                 </div>
             </div>
             <div class="field-group">
@@ -78,22 +70,19 @@
         </div>
 
         <div class="questions">
-            <section class="question-card" th:each="question, status : ${questions}">
+            <section class="question-card" th:each="item, status : ${questionItems}" th:attr="data-question-id=${item.question.id}">
                 <div class="question-meta">
-                    <div>
-                        <span class="question-index" th:text="|AUSSAGE ${status.count} / ${status.size}|"></span>
-                        <span class="question-category-pill" th:text="${question.category.label}"></span>
-                    </div>
-                    <span class="question-id" th:text="${question.id}"></span>
+                    <span class="question-index" th:text="|AUSSAGE ${status.count} / ${status.size}|"></span>
+                    <span class="question-category-pill" th:text="${item.question.category.label}"></span>
                 </div>
                 <fieldset>
-                    <legend th:text="${question.getThesisFor(role)}"></legend>
+                    <legend th:text="${item.question.getThesisFor(role)}"></legend>
                     <div class="options">
-                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="1" required><span class="option-number">1</span><span class="option-text">Stimme überhaupt nicht zu</span></label>
-                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="2" required><span class="option-number">2</span><span class="option-text">Stimme eher nicht zu</span></label>
-                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="3" required><span class="option-number">3</span><span class="option-text">Weder noch</span></label>
-                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="4" required><span class="option-number">4</span><span class="option-text">Stimme eher zu</span></label>
-                        <label class="option"><input type="radio" th:name="|answers[${status.index}]|" value="5" required><span class="option-number">5</span><span class="option-text">Stimme voll und ganz zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${item.index}]|" value="1" required><span class="option-number">1</span><span class="option-text">Stimme überhaupt nicht zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${item.index}]|" value="2" required><span class="option-number">2</span><span class="option-text">Stimme eher nicht zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${item.index}]|" value="3" required><span class="option-number">3</span><span class="option-text">Weder noch</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${item.index}]|" value="4" required><span class="option-number">4</span><span class="option-text">Stimme eher zu</span></label>
+                        <label class="option"><input type="radio" th:name="|answers[${item.index}]|" value="5" required><span class="option-number">5</span><span class="option-text">Stimme voll und ganz zu</span></label>
                     </div>
                 </fieldset>
             </section>
@@ -132,6 +121,10 @@
                 <h2 id="thinking-title">Ein Moment zum Innehalten</h2>
                 <p th:text="${thinkingQuestion}"></p>
                 <textarea id="reflectionNote" name="reflectionNote" aria-label="Ihr persönlicher Denkanstoß" placeholder="Optional: Notieren Sie einen Gedanken, eine Beobachtung oder einen konkreten Wunsch …"></textarea>
+                <label class="privacy-opt-in">
+                    <input type="checkbox" name="shareReflectionWithTeam" value="true">
+                    <span>Diesen Denkanstoß anonym im Team-Vergleich teilen (bleibt sonst privat für Ihre eigene Auswertung)</span>
+                </label>
             </section>
         </div>
 
@@ -145,11 +138,6 @@
     </form>
 </main>
 
-<footer class="site-footer">
-    <div class="footer-inner">
-        <span>chefsache · Führung reflektieren.</span>
-        <span>Fragebogen zu ausbeuterischem Führungsverhalten</span>
-    </div>
-</footer>
+<div th:replace="~{fragments/layout :: siteFooter}"></div>
 </body>
 </html>

@@ -11,6 +11,8 @@ public record ComparisonReport(
         List<String> availableRounds,
         int employeeCount,
         boolean hasLeaderSubmission,
+        boolean anonymityProtected,
+        boolean anonymityLocked,
         Double leaderTotalScore,
         Double employeeTotalScore,
         Double totalBlindSpot,
@@ -19,6 +21,9 @@ public record ComparisonReport(
         TrendDirection totalTrend,
         ScoreSeverity overallSeverity,
         List<CategoryComparison> categories,
+        List<QuestionHotspot> questionHotspots,
+        List<CategoryTimelineRow> categoryTimeline,
+        List<TeamActionItem> actionItems,
         List<TagCount> situationTagCounts,
         List<FeedbackNote> generalSituationNotes,
         List<FeedbackNote> reflectionNotes,
@@ -92,6 +97,19 @@ public record ComparisonReport(
             return employeeScore == null ? 0.0 : (employeeScore - 1.0) * 25.0;
         }
 
+        // Startposition (in %) der Mitarbeiter-Spannweite (Min bis Max)
+        public double employeeRangeStartPercent() {
+            return employeeMin == null ? 0.0 : (employeeMin - 1.0) * 25.0;
+        }
+
+        // Breite (in %) der Mitarbeiter-Spannweite (Min bis Max)
+        public double employeeRangeWidthPercent() {
+            if (employeeMin == null || employeeMax == null) {
+                return 0.0;
+            }
+            return Math.max(0.0, (employeeMax - employeeMin) * 25.0);
+        }
+
         // Startposition für die visuelle Markierung der Wahrnehmungslücke
         public double gapStartPercent() {
             if (leaderScore == null || employeeScore == null) {
@@ -107,6 +125,25 @@ public record ComparisonReport(
             }
             return Math.abs(employeePositionPercent() - leaderPositionPercent());
         }
+    }
+
+    // Einzelfragen-Hotspot mit dem größten Unterschied bzw. höchsten Wert
+    public record QuestionHotspot(
+            Question question,
+            Double leaderAnswer,
+            Double employeeMean,
+            Double blindSpotDelta,
+            ScoreSeverity severity
+    ) {
+    }
+
+    // Verlaufszeile einer einzelnen Kategorie über alle Runden hinweg
+    public record CategoryTimelineRow(
+            Category category,
+            List<Double> roundEmployeeScores,
+            Double overallDelta,
+            TrendDirection trend
+    ) {
     }
 
     // Zählung eines gemeldeten Situations-Tags in einer Runde
@@ -143,7 +180,8 @@ public record ComparisonReport(
             long totalSubmissions,
             long roundCount,
             String latestRoundName,
-            Double latestEmployeeScore
+            Double latestEmployeeScore,
+            boolean anonymityProtected
     ) {
     }
 }

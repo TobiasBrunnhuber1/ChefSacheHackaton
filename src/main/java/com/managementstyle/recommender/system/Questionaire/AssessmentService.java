@@ -30,16 +30,24 @@ public class AssessmentService {
     public static final String DEMO_TEAM_CODE = "demo-team";
     // Schwelle ab 0,20 Punkten Differenz, ab der ein echter Trend ausgewiesen wird
     private static final double TREND_EPSILON = 0.20;
+    // Mindestanzahl Mitarbeiter-Antworten bei aktiviertem Anonymitätsschutz
+    public static final int ANONYMITY_THRESHOLD = 3;
 
     private final QuestionRepository questionRepository;
     private final AssessmentSubmissionRepository submissionRepository;
+    private final TeamActionItemRepository actionItemRepository;
+    private final TeamSettingsRepository teamSettingsRepository;
 
     public AssessmentService(
             QuestionRepository questionRepository,
-            AssessmentSubmissionRepository submissionRepository
+            AssessmentSubmissionRepository submissionRepository,
+            TeamActionItemRepository actionItemRepository,
+            TeamSettingsRepository teamSettingsRepository
     ) {
         this.questionRepository = questionRepository;
         this.submissionRepository = submissionRepository;
+        this.actionItemRepository = actionItemRepository;
+        this.teamSettingsRepository = teamSettingsRepository;
     }
 
     // Ergebnis-Record für die validierten Mittelwerte je Kategorie und insgesamt
@@ -97,6 +105,7 @@ public class AssessmentService {
         entity.setSituationCategory(submission.getSituationCategory());
         entity.setSituationNote(cleanText(submission.getSituationNote()));
         entity.setReflectionNote(cleanText(submission.getReflectionNote()));
+        entity.setShareReflectionWithTeam(submission.isShareReflectionWithTeam());
 
         return submissionRepository.save(entity);
     }
@@ -105,6 +114,8 @@ public class AssessmentService {
     @Transactional(readOnly = true)
     public List<ComparisonReport.TeamOverview> listTeamOverviews() {
         List<AssessmentSubmission> all = submissionRepository.findAllByOrderBySubmittedAtDesc();
+        Map<String, Boolean> settingsByTeam = teamSettingsRepository.findAll().stream()
+                .collect(Collectors.toMap(TeamSettings::getTeamCode, TeamSettings::isAnonymityProtected, (a, b) -> b));
         Map<String, List<AssessmentSubmission>> byTeam = new LinkedHashMap<>();
         for (AssessmentSubmission sub : all) {
             byTeam.computeIfAbsent(sub.getTeamCode(), k -> new ArrayList<>()).add(sub);
@@ -128,21 +139,34 @@ public class AssessmentService {
                     subs.size(),
                     roundCount,
                     latestRound,
-                    latestEmployeeAvg
+                    latestEmployeeAvg,
+                    settingsByTeam.getOrDefault(entry.getKey(), false)
             ));
         }
         return overviews;
     }
 
-    // Baut den vollständigen Vergleichsbericht (Selbst- vs. Fremdbild und Entwicklung zur Vorrunde)
+    // Baut den Vergleichsbericht mit Standardeinstellung ohne Anonymitäts-Override
     @Transactional(readOnly = true)
     public Optional<ComparisonReport> buildComparisonReport(String rawTeamCode, String rawRoundName) {
+        return buildComparisonReport(rawTeamCode, rawRoundName, false);
+    }
+
+    // Baut den vollständigen Vergleichsbericht (Selbst- vs. Fremdbild, Hotspots und Zeitverlauf)
+    @Transactional(readOnly = true)
+    public Optional<ComparisonReport> buildComparisonReport(
+            String rawTeamCode,
+            String rawRoundName,
+            boolean revealOverride
+    ) {
         String teamCode = normalizeTeamCode(rawTeamCode);
         List<AssessmentSubmission> allForTeam =
                 submissionRepository.findByTeamCodeOrderByRoundOrderAscSubmittedAtAsc(teamCode);
         if (allForTeam.isEmpty()) {
             return Optional.empty();
         }
+
+        boolean anonymityProtected = isAnonymityProtected(teamCode);
 
         // Alle Abgaben je Runde unter Beibehaltung der Rundenreihenfolge gruppieren
         Map<String, List<AssessmentSubmission>> roundsMap = new LinkedHashMap<>();
@@ -163,6 +187,10 @@ public class AssessmentService {
         Optional<AssessmentSubmission> latestLeader = latestLeaderIn(currentSubs);
         List<AssessmentSubmission> currentEmployees = employeesIn(currentSubs);
         List<AssessmentSubmission> previousEmployees = employeesIn(previousSubs);
+        boolean anonymityLocked = anonymityProtected
+                && !currentEmployees.isEmpty()
+                && currentEmployees.size() < ANONYMITY_THRESHOLD
+                && !revealOverride;
 
         Double leaderTotal = latestLeader.map(AssessmentSubmission::getTotalScore).orElse(null);
         Double employeeTotal = averageTotal(currentEmployees);
@@ -185,6 +213,12 @@ public class AssessmentService {
                 currentSubs
         );
 
+        List<ComparisonReport.QuestionHotspot> hotspots =
+                buildQuestionHotspots(latestLeader.orElse(null), currentEmployees);
+        List<ComparisonReport.CategoryTimelineRow> categoryTimeline = buildCategoryTimeline(roundsMap);
+        List<TeamActionItem> actionItems =
+                actionItemRepository.findByTeamCodeOrderByCompletedAscCreatedAtDesc(teamCode);
+
         List<ComparisonReport.TagCount> tagCounts = countTags(currentSubs);
         List<ComparisonReport.FeedbackNote> generalSituationNotes = currentSubs.stream()
                 .filter(s -> s.getSituationCategory() == null && hasText(s.getSituationNote()))
@@ -192,7 +226,7 @@ public class AssessmentService {
                         s.getRole(), null, s.getSituationTags(), s.getSituationNote(), s.getSubmittedAt()))
                 .toList();
         List<ComparisonReport.FeedbackNote> reflectionNotes = currentSubs.stream()
-                .filter(s -> hasText(s.getReflectionNote()))
+                .filter(s -> s.isShareReflectionWithTeam() && hasText(s.getReflectionNote()))
                 .map(s -> new ComparisonReport.FeedbackNote(
                         s.getRole(), s.getSituationCategory(), s.getSituationTags(), s.getReflectionNote(), s.getSubmittedAt()))
                 .toList();
@@ -207,6 +241,8 @@ public class AssessmentService {
                 availableRounds,
                 currentEmployees.size(),
                 latestLeader.isPresent(),
+                anonymityProtected,
+                anonymityLocked,
                 leaderTotal,
                 employeeTotal,
                 totalBlindSpot,
@@ -215,6 +251,9 @@ public class AssessmentService {
                 totalTrend,
                 overallSeverity,
                 categories,
+                hotspots,
+                categoryTimeline,
+                actionItems,
                 tagCounts,
                 generalSituationNotes,
                 reflectionNotes,
@@ -228,6 +267,7 @@ public class AssessmentService {
     @Transactional
     public String seedDemoData() {
         submissionRepository.deleteByTeamCode(DEMO_TEAM_CODE);
+        actionItemRepository.deleteByTeamCode(DEMO_TEAM_CODE);
         Instant baseTime = Instant.now().minus(28, ChronoUnit.DAYS);
 
         // Runde 1: Führungskraft schätzt sich niedrig ein, Team meldet erhöhten Druck und Vereinnahmung
@@ -289,7 +329,91 @@ public class AssessmentService {
                 "Im 1:1 wurde erstmals ein konkretes Lernprojekt für das nächste Quartal vereinbart.",
                 "Guter Schritt in die richtige Richtung – dranbleiben!");
 
+        addDemoAction(DEMO_TEAM_CODE, "Runde 1 (Start)", Category.PRESSURE,
+                "Kapazitätsboard im Weekly einführen und neue Aufgaben nur gegen Priorisierung vergeben.", true, baseTime.plus(1, ChronoUnit.DAYS));
+        addDemoAction(DEMO_TEAM_CODE, "Runde 1 (Start)", Category.TAKING_CREDIT,
+                "Teammitglieder ihre Ergebnisse im Management-Review selbst vorstellen lassen.", true, baseTime.plus(2, ChronoUnit.DAYS));
+        addDemoAction(DEMO_TEAM_CODE, "Runde 2 (Follow-up)", Category.UNDERMINING_DEVELOPMENT,
+                "Verbindliche Lern- und Entwicklungszeit im Sprint-Kalender für alle Teammitglieder verankern.", false, round2Time.plus(1, ChronoUnit.DAYS));
+
         return DEMO_TEAM_CODE;
+    }
+
+    // Legt eine Demo-Maßnahme für das Beispiel-Team an
+    private void addDemoAction(String teamCode, String roundName, Category category, String description, boolean completed, Instant createdAt) {
+        TeamActionItem item = new TeamActionItem();
+        item.setTeamCode(teamCode);
+        item.setRoundName(roundName);
+        item.setCategory(category);
+        item.setDescription(description);
+        item.setCompleted(completed);
+        item.setCreatedAt(createdAt);
+        actionItemRepository.save(item);
+    }
+
+    // Prüft, ob für ein Team der Anonymitätsschutz (erst ab 3 Antworten) aktiv ist
+    @Transactional(readOnly = true)
+    public boolean isAnonymityProtected(String rawTeamCode) {
+        String teamCode = normalizeTeamCode(rawTeamCode);
+        return teamSettingsRepository.findById(teamCode)
+                .map(TeamSettings::isAnonymityProtected)
+                .orElse(false);
+    }
+
+    // Speichert die Anonymitätseinstellung für ein Team
+    @Transactional
+    public void updateAnonymityProtection(String rawTeamCode, boolean enabled) {
+        String teamCode = normalizeTeamCode(rawTeamCode);
+        teamSettingsRepository.save(new TeamSettings(teamCode, enabled));
+    }
+
+    // Fügt eine konkrete Entwicklungsmaßnahme für ein Team hinzu
+    @Transactional
+    public void addActionItem(String rawTeamCode, String rawRoundName, Category category, String description) {
+        String cleaned = cleanText(description);
+        if (cleaned == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bitte eine konkrete Maßnahme eingeben.");
+        }
+        String limited = cleaned.length() > 500 ? cleaned.substring(0, 500) : cleaned;
+        TeamActionItem item = new TeamActionItem();
+        item.setTeamCode(normalizeTeamCode(rawTeamCode));
+        item.setRoundName(normalizeRoundName(rawRoundName));
+        item.setCategory(category);
+        item.setDescription(limited);
+        item.setCompleted(false);
+        item.setCreatedAt(Instant.now());
+        actionItemRepository.save(item);
+    }
+
+    // Schaltet den Erledigt-Status einer Maßnahme um und liefert den Team-Code zurück
+    @Transactional
+    public String toggleActionItem(Long id) {
+        TeamActionItem item = actionItemRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Maßnahme nicht gefunden."));
+        item.setCompleted(!item.isCompleted());
+        actionItemRepository.save(item);
+        return item.getTeamCode();
+    }
+
+    // Löscht eine einzelne Maßnahme und liefert den zugehörigen Team-Code zurück
+    @Transactional
+    public String deleteActionItem(Long id) {
+        TeamActionItem item = actionItemRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Maßnahme nicht gefunden."));
+        String teamCode = item.getTeamCode();
+        actionItemRepository.delete(item);
+        return teamCode;
+    }
+
+    // Löscht alle gespeicherten Erhebungen, Maßnahmen und Einstellungen eines Teams
+    @Transactional
+    public void deleteTeamData(String rawTeamCode) {
+        String teamCode = normalizeTeamCode(rawTeamCode);
+        submissionRepository.deleteByTeamCode(teamCode);
+        actionItemRepository.deleteByTeamCode(teamCode);
+        if (teamSettingsRepository.existsById(teamCode)) {
+            teamSettingsRepository.deleteById(teamCode);
+        }
     }
 
     // Hilfsmethode zum Speichern eines einzelnen Demo-Datensatzes mit festem Zeitstempel
@@ -318,7 +442,86 @@ public class AssessmentService {
         entity.setSituationCategory(situationCategory);
         entity.setSituationNote(situationNote);
         entity.setReflectionNote(reflectionNote);
+        entity.setShareReflectionWithTeam(true);
         submissionRepository.save(entity);
+    }
+
+    // Ermittelt die Top-3-Einzelaussagen mit der größten Wahrnehmungslücke bzw. höchsten Ausprägung
+    private List<ComparisonReport.QuestionHotspot> buildQuestionHotspots(
+            AssessmentSubmission leader,
+            List<AssessmentSubmission> currentEmployees
+    ) {
+        if (leader == null && currentEmployees.isEmpty()) {
+            return List.of();
+        }
+        List<Question> questions = questionRepository.findAll();
+        List<ComparisonReport.QuestionHotspot> hotspots = new ArrayList<>();
+        for (int i = 0; i < questions.size(); i++) {
+            final int index = i;
+            Double leaderAnswer = (leader != null && leader.getAnswers().size() > index)
+                    ? leader.getAnswers().get(index).doubleValue()
+                    : null;
+            List<Integer> employeeAnswers = currentEmployees.stream()
+                    .filter(s -> s.getAnswers().size() > index)
+                    .map(s -> s.getAnswers().get(index))
+                    .toList();
+            Double employeeMean = employeeAnswers.isEmpty()
+                    ? null
+                    : employeeAnswers.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+            Double blindSpot = (leaderAnswer != null && employeeMean != null) ? employeeMean - leaderAnswer : null;
+            double primary = employeeMean != null ? employeeMean : (leaderAnswer != null ? leaderAnswer : 1.0);
+            hotspots.add(new ComparisonReport.QuestionHotspot(
+                    questions.get(i),
+                    leaderAnswer,
+                    employeeMean,
+                    blindSpot,
+                    ScoreSeverity.fromScore(primary)
+            ));
+        }
+
+        return hotspots.stream()
+                .sorted(Comparator
+                        .<ComparisonReport.QuestionHotspot>comparingDouble(h -> h.blindSpotDelta() != null ? Math.abs(h.blindSpotDelta()) : 0.0)
+                        .reversed()
+                        .thenComparing(Comparator.<ComparisonReport.QuestionHotspot>comparingDouble(
+                                h -> h.employeeMean() != null ? h.employeeMean() : (h.leaderAnswer() != null ? h.leaderAnswer() : 0.0)
+                        ).reversed()))
+                .limit(3)
+                .toList();
+    }
+
+    // Erstellt den Verlaufsvergleich je Kategorie über alle vorhandenen Runden
+    private List<ComparisonReport.CategoryTimelineRow> buildCategoryTimeline(
+            Map<String, List<AssessmentSubmission>> roundsMap
+    ) {
+        List<ComparisonReport.CategoryTimelineRow> rows = new ArrayList<>();
+        for (Category category : Category.values()) {
+            List<Double> roundScores = new ArrayList<>();
+            Double firstScore = null;
+            Double lastScore = null;
+            int nonNullCount = 0;
+            for (List<AssessmentSubmission> roundSubs : roundsMap.values()) {
+                Double avg = averageCategory(employeesIn(roundSubs), category);
+                roundScores.add(avg);
+                if (avg != null) {
+                    if (firstScore == null) {
+                        firstScore = avg;
+                    }
+                    lastScore = avg;
+                    nonNullCount++;
+                }
+            }
+            Double overallDelta = (nonNullCount >= 2 && firstScore != null && lastScore != null)
+                    ? lastScore - firstScore
+                    : null;
+            rows.add(new ComparisonReport.CategoryTimelineRow(
+                    category,
+                    roundScores,
+                    overallDelta,
+                    classifyTrend(overallDelta)
+            ));
+        }
+        return rows;
     }
 
     // Erstellt den Detailvergleich für alle fünf Führungsdimensionen
@@ -377,8 +580,8 @@ public class AssessmentService {
         List<Map.Entry<String, List<AssessmentSubmission>>> entries = new ArrayList<>(roundsMap.entrySet());
         int count = entries.size();
         List<ComparisonReport.RoundPoint> points = new ArrayList<>();
-        double chartLeft = 56.0;
-        double chartWidth = 488.0;
+        double chartLeft = 84.0;
+        double chartWidth = 432.0;
 
         for (int i = 0; i < count; i++) {
             String roundName = entries.get(i).getKey();

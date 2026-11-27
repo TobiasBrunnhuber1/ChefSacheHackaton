@@ -21,6 +21,8 @@ public class QuizAnswers {
     private String situationNote;
     // Optionaler Freitext im Denkanstoß-Feld
     private String reflectionNote;
+    // Steuert, ob die Denkanstoß-Notiz anonym im Team-Vergleich erscheinen darf
+    private boolean shareReflectionWithTeam;
 
     // Liefert die Antwortenliste
     public List<Integer> getAnswers() {
@@ -100,5 +102,15 @@ public class QuizAnswers {
     // Setzt den Denkanstoß-Eintrag
     public void setReflectionNote(String reflectionNote) {
         this.reflectionNote = reflectionNote;
+    }
+
+    // Liefert, ob die Denkanstoß-Notiz anonym geteilt werden darf
+    public boolean isShareReflectionWithTeam() {
+        return shareReflectionWithTeam;
+    }
+
+    // Legt fest, ob die Denkanstoß-Notiz anonym geteilt wird
+    public void setShareReflectionWithTeam(boolean shareReflectionWithTeam) {
+        this.shareReflectionWithTeam = shareReflectionWithTeam;
     }
 }

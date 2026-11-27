@@ -2,6 +2,8 @@ package com.managementstyle.recommender.system;
 
 import com.managementstyle.recommender.system.Questionaire.AssessmentSubmissionRepository;
 import com.managementstyle.recommender.system.Questionaire.Category;
+import com.managementstyle.recommender.system.Questionaire.TeamActionItemRepository;
+import com.managementstyle.recommender.system.Questionaire.TeamSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,10 +33,18 @@ class RecommenderSystemApplicationTests {
     @Autowired
     private AssessmentSubmissionRepository submissionRepository;
 
+    @Autowired
+    private TeamActionItemRepository actionItemRepository;
+
+    @Autowired
+    private TeamSettingsRepository teamSettingsRepository;
+
     // Leert die Test-Datenbank vor jedem Testfall für reproduzierbare Ergebnisse
     @BeforeEach
     void cleanDatabase() {
         submissionRepository.deleteAll();
+        actionItemRepository.deleteAll();
+        teamSettingsRepository.deleteAll();
     }
 
     // Erzeugt einen gültigen POST-Request mit 15 identischen Likert-Antworten
@@ -169,7 +179,8 @@ class RecommenderSystemApplicationTests {
                 .andReturn().getResponse().getContentAsString();
         assertThat(round2Html)
                 .contains("Bessert sich")
-                .contains("-2,50");
+                .contains("-2,50")
+                .contains("Team-Ø (1 Antwort)");
     }
 
     // Prüft Hub-Startseite sowie das Laden des Demo-Szenarios in der Datenbank
@@ -189,6 +200,114 @@ class RecommenderSystemApplicationTests {
         assertThat(compareHtml)
                 .contains("Runde 1 (Start)")
                 .contains("Runde 2 (Follow-up)")
-                .contains("Bessert sich");
+                .contains("Bessert sich")
+                .contains("Verlauf nach Bereichen")
+                .contains("Einzelaussagen mit der größten Abweichung")
+                .contains("Kapazitätsboard im Weekly einführen");
+    }
+
+    // Prüft QR-Code-Generierung, gemischte Fragenreihenfolge und Datenschutz für private Denkanstoß-Notizen
+    @Test
+    void supportsQrCodeShuffledQuizAndPrivateVsSharedReflections() throws Exception {
+        String qrSvg = mvc.perform(get("/qr").param("text", "http://localhost:8080/quiz?role=EMPLOYEE&team=nord"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(qrSvg).contains("<svg", "<path");
+
+        String shuffledHtml = mvc.perform(get("/quiz").param("shuffle", "true"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        for (int i = 0; i < 15; i++) {
+            assertThat(shuffledHtml.split("name=\"answers\\[" + i + "\\]\"", -1)).hasSize(6);
+        }
+
+        String privateResult = mvc.perform(submission("3")
+                        .param("role", "EMPLOYEE")
+                        .param("teamCode", "team-privat")
+                        .param("roundName", "Runde 1")
+                        .param("reflectionNote", "Sehr vertraulicher Gedanke"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(privateResult)
+                .contains("Sehr vertraulicher Gedanke")
+                .contains("Privat (nur für Sie sichtbar)");
+
+        mvc.perform(submission("4")
+                        .param("role", "EMPLOYEE")
+                        .param("teamCode", "team-privat")
+                        .param("roundName", "Runde 1")
+                        .param("reflectionNote", "Öffentlich geteilter Impuls")
+                        .param("shareReflectionWithTeam", "true"))
+                .andExpect(status().isOk());
+
+        String compareHtml = mvc.perform(get("/compare").param("team", "team-privat"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(compareHtml)
+                .contains("Öffentlich geteilter Impuls")
+                .doesNotContain("Sehr vertraulicher Gedanke");
+    }
+
+    // Prüft Anonymitätssperre (< 3 Antworten), Maßnahmen-Checkliste und vollständiges Team-Löschen
+    @Test
+    void enforcesAnonymityThresholdManagesActionsAndDeletesTeam() throws Exception {
+        mvc.perform(post("/teams/settings")
+                        .param("team", "team-schutz")
+                        .param("anonymityProtected", "true"))
+                .andExpect(status().is3xxRedirection());
+
+        for (int i = 0; i < 2; i++) {
+            mvc.perform(submission("4")
+                            .param("role", "EMPLOYEE")
+                            .param("teamCode", "team-schutz")
+                            .param("roundName", "Runde 1"))
+                    .andExpect(status().isOk());
+        }
+
+        String lockedHtml = mvc.perform(get("/compare").param("team", "team-schutz"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(lockedHtml).contains("Anonymitätsschutz aktiv");
+
+        String revealedHtml = mvc.perform(get("/compare").param("team", "team-schutz").param("reveal", "true"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(revealedHtml)
+                .contains("Die fünf Bereiche im direkten Vergleich")
+                .contains("Team-Ø (2 Antworten)");
+
+        mvc.perform(post("/compare/actions")
+                        .param("team", "team-schutz")
+                        .param("round", "Runde 1")
+                        .param("category", "PRESSURE")
+                        .param("reveal", "true")
+                        .param("description", "Wöchentliches Kapazitäts-Check-in"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/compare?team=team-schutz&round=Runde+1&reveal=true"));
+
+        mvc.perform(submission("4")
+                        .param("role", "EMPLOYEE")
+                        .param("teamCode", "team-schutz")
+                        .param("roundName", "Runde 1"))
+                .andExpect(status().isOk());
+
+        String unlockedHtml = mvc.perform(get("/compare").param("team", "team-schutz"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(unlockedHtml).contains("Die fünf Bereiche im direkten Vergleich");
+
+        Long actionId = actionItemRepository.findByTeamCodeOrderByCompletedAscCreatedAtDesc("team-schutz").get(0).getId();
+        mvc.perform(post("/compare/actions/" + actionId + "/toggle").param("round", "Runde 1"))
+                .andExpect(status().is3xxRedirection());
+        assertThat(actionItemRepository.findById(actionId)).get()
+                .satisfies(item -> assertThat(item.isCompleted()).isTrue());
+
+        mvc.perform(post("/compare/actions/" + actionId + "/delete").param("round", "Runde 1"))
+                .andExpect(status().is3xxRedirection());
+        assertThat(actionItemRepository.findByTeamCodeOrderByCompletedAscCreatedAtDesc("team-schutz")).isEmpty();
+
+        mvc.perform(post("/teams/delete").param("team", "team-schutz"))
+                .andExpect(status().is3xxRedirection());
+        assertThat(submissionRepository.findByTeamCodeOrderByRoundOrderAscSubmittedAtAsc("team-schutz")).isEmpty();
     }
 }

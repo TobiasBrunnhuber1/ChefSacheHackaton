@@ -85,6 +85,10 @@ public class AssessmentSubmission {
     @Column(length = 2000)
     private String reflectionNote;
 
+    // Legt fest, ob die Denkanstoß-Notiz im Team-Vergleich angezeigt werden darf
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean shareReflectionWithTeam = true;
+
     // Standardkonstruktor für JPA
     public AssessmentSubmission() {
     }
@@ -196,6 +200,14 @@ public class AssessmentSubmission {
 
     public void setReflectionNote(String reflectionNote) {
         this.reflectionNote = reflectionNote;
+    }
+
+    public boolean isShareReflectionWithTeam() {
+        return shareReflectionWithTeam;
+    }
+
+    public void setShareReflectionWithTeam(boolean shareReflectionWithTeam) {
+        this.shareReflectionWithTeam = shareReflectionWithTeam;
     }
 
     // Wandelt die gespeicherten Einzelwerte in eine geordnete EnumMap um
